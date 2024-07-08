@@ -6,7 +6,7 @@
 
 ## Our Vision
 
-StoneSoup is an open-source, flexible platform for AI workflows, with a focus on plugin-centric development and extensibility. Built on the foundation of [LiteGraph](https://github.com/jagenjo/litegraph.js), we aim to create a powerful and user-friendly environment for AI experimentation and development.
+StoneSoup is an open-source, flexible platform for AI workflows and experimentation. Built on [LiteGraph](https://github.com/jagenjo/litegraph.js), it emphasizes plugin-centric development and easy testing of various AI methods and parameters. Our goal is to provide a powerful, user-friendly environment for AI innovation.
 
 ## Why StoneSoup?
 
