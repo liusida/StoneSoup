@@ -34,7 +34,9 @@ We also extend our thanks to the [LiteGraph](https://github.com/jagenjo/litegrap
 
 ## Your Support Matters
 
-StoneSoup is in its early stages, and your involvement can shape its future! Every contribution counts:
+StoneSoup is in its early stages, and your involvement can shape its future! 
+
+Every contribution counts:
 
 - Open an issue to report bugs or suggest features
 - Share your ideas and feedback in discussions
