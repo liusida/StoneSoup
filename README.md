@@ -6,11 +6,11 @@
 
 ## Our Vision
 
-StoneSoup is an open-source, flexible platform for AI workflows, with a focus on plugin-centric development and extensibility. Built on the foundation of LiteGraph, we aim to create a powerful and user-friendly environment for AI experimentation and development.
+StoneSoup is an open-source, flexible platform for AI workflows, with a focus on plugin-centric development and extensibility. Built on the foundation of [LiteGraph](https://github.com/jagenjo/litegraph.js), we aim to create a powerful and user-friendly environment for AI experimentation and development.
 
 ## Why StoneSoup?
 
-While ComfyUI has set a high standard in the field of AI workflow interfaces, StoneSoup offers an alternative approach. We differentiate ourselves in several key areas:
+While [ComfyUI](https://github.com/comfyanonymous/ComfyUI) has set a high standard in the field of AI workflow interfaces, StoneSoup offers an alternative approach. We differentiate ourselves in several key areas:
 
 1. **Open License**: StoneSoup uses the MIT license, providing maximum flexibility for developers and businesses. This contrasts with ComfyUI's GPL-v3 license.
 
