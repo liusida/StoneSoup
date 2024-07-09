@@ -23,3 +23,9 @@ resizeCanvas();
 document.getElementById("executeButton").addEventListener("click", function() {
     graph.runStep(1);  // Execute one step of the graph
 });
+document.getElementById("startButton").addEventListener("click", function() {
+    graph.start();
+});
+document.getElementById("stopButton").addEventListener("click", function() {
+    graph.stop();
+});
