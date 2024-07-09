@@ -47,3 +47,9 @@ Every contribution counts:
 Your input is crucial in guiding the direction of this project. No matter how small, your contribution can make a significant impact. Join us in building StoneSoup into a powerful, community-driven AI workflow platform.
 
 Let's create something amazing together!
+
+## All Built-in LiteGraph Nodes
+
+LiteGraph has many built-in nodes, let's take a quick look at all of them:
+
+![nodes](images/all_LG_nodes.png)

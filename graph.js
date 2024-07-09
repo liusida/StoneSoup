@@ -6,8 +6,9 @@ document.addEventListener("DOMContentLoaded", function() {
     function PythonFunctionNode() {
         this.addInput("input", "number");
         this.addOutput("output", "number");
+        this.addOutput("next", LiteGraph.EVENT);
         this.properties = { state: "IDLE" };
-        this.size = [300, 40];
+        // this.size = [300, 40];
     }
 
     PythonFunctionNode.title = "Python Function DoubleIt";
@@ -50,6 +51,7 @@ document.addEventListener("DOMContentLoaded", function() {
             this.graph.setDirtyCanvas(true, true);  // Request a redraw
             var event = new CustomEvent('operationComplete', { detail: this });
             window.dispatchEvent(event);
+            this.triggerSlot(1);
     
         })
         .catch(error => {
