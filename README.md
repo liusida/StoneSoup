@@ -53,3 +53,7 @@ Let's create something amazing together!
 LiteGraph has many built-in nodes, let's take a quick look at all of them:
 
 ![nodes](images/all_LG_nodes.png)
+
+Here is the nodes in the `mini` version (I think I'll use them more):
+
+![nodes](images/all_LG_mini_nodes.png)
