@@ -26,5 +26,10 @@ async def func_doubleit(data: InputData):
     result = data.value * 2  # Example function logic
     return {"result": result}
 
+@app.get("/test")
+async def test():
+    print("get test")
+    return {"result": "success"}
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
