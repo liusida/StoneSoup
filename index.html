@@ -4,18 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>LiteGraph with Serverside Python</title>
-    <script src="litegraph.js/build/litegraph_mini.js"></script>
-    <link rel="stylesheet" href="litegraph.js/css/litegraph.css">
+    <link rel="stylesheet" href="litegraph.js-daniel/css/litegraph.css">
+    <link rel="stylesheet" href="litegraph.js-daniel/css/litegraph-editor.css">
     <link rel="stylesheet" href="style.css">
+
+    <script type="module" src="litegraph.js-daniel/src/litegraph.js"></script>
+    <script type="module" src="litegraph.js-daniel/src/nodes/base.js"></script>
+    <script type="module" src="litegraph.js-daniel/src/nodes/interface.js"></script>
+
+    <script type="module" src="ss-editor.js" defer></script>
 </head>
 <body>
-    <canvas id="mycanvas"></canvas>
-    <div id="controlPanel">
-        <button id="executeButton">Execute Graph</button>
-        <button id="startButton">Start</button>
-        <button id="stopButton">Stop</button>
-    </div>
-    <script src="setup.js"></script>
-    <script src="continuous.js"></script>
+    <div id="main"></div>
 </body>
 </html>
