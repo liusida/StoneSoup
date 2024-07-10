@@ -57,3 +57,22 @@ LiteGraph has many built-in nodes, let's take a quick look at all of them:
 Here is the nodes in the `mini` version (I think I'll use them more):
 
 ![nodes](images/all_LG_mini_nodes.png)
+
+## Usage
+
+This project is currently working in progress, this section might not work due to frequent change of source code.
+
+Start the Python Server w/ auto-reload:
+```
+python.exe -m uvicorn server:app --reload --port 6165
+```
+
+Start the StoneSoup website w/ auto-reload:
+```
+http-server -p 6166
+```
+
+Access StoneSoup:
+```
+http://localhost:6166/
+```
