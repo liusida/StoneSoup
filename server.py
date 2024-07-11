@@ -17,6 +17,33 @@ app.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
+@app.get("/nodes")
+async def get_nodes():
+    nodes = []
+    node = {}
+    from nodes.core.py.const import ConstInteger
+    node['inputs'] = ConstInteger.INPUTS()
+    node['widgets'] = ConstInteger.WIDGETS()
+    node['outputs'] = ConstInteger.OUTPUTS()
+    node['type'] = f"core/{ConstInteger.__name__}"
+    node['title'] = ConstInteger.TITLE
+    nodes.append(node)
+
+    return nodes
+
+class APIInput(BaseModel):
+    api: str
+
+@app.post("/api")
+async def api(data: APIInput):
+    print(data)
+    print(data.api)
+    # TODO: call that api's execution function and get result
+    result = {
+        "output": 0
+    }
+    return {"result": result}
+
 class DoubleItInput(BaseModel):
     value: float
 

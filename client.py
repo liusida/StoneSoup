@@ -7,9 +7,6 @@ mimetypes.add_type("application/javascript", ".js")
 
 app = FastAPI()
 
-# Mount the static files directory at the root
-# app.mount("/", StaticFiles(directory="web", html=True), name="static")
-
 # Function to generate script and link tags for plugins
 def generate_plugin_tags(plugins_dir):
     script_tags = []
@@ -39,7 +36,7 @@ async def serve_index():
 
     return HTMLResponse(content=content)
 
-# Mount the plugins directory at /plugins
+# Mount directories
 app.mount("/plugins", StaticFiles(directory="plugins"), name="plugins")
 app.mount("/assets", StaticFiles(directory="assets"), name="assets")
 app.mount("/litegraph.js", StaticFiles(directory="litegraph.js-daniel"), name="litegraph_js_daniel")

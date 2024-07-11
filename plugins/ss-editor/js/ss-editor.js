@@ -1,3 +1,4 @@
+import { LiteGraph } from "/litegraph.js/src/litegraph.js";
 import { LGraphCanvas } from "/litegraph.js/src/lgraphcanvas.js";
 import { LGraph } from "/litegraph.js/src/lgraph.js";
 
@@ -30,7 +31,8 @@ export class StoneSoupEditor {
 
         graphcanvas.show_info = false;
 
-        graphcanvas.background_image = "/plugins/ss-editor/assets/ss-bg-dark.png";
+        graphcanvas.background_image =
+            "/plugins/ss-editor/assets/ss-bg-dark.png";
         graphcanvas._pattern = null; // hack: need to reset pattern after set background image
 
         graph.onAfterExecute = () => {
@@ -148,13 +150,89 @@ function updateEditorHiPPICanvas() {
     return editor.canvas;
 }
 
+// == Register Nodes ==
+function registerServersideNodes(nodeData) {
+    console.log(nodeData);
+    const nodeClass = class extends LiteGraph.LGraphNode {
+        constructor(title) {
+            super(title);
+
+            //All server-side nodes contain this event trigger
+            this.addInput("", LiteGraph.EVENT);
+            this.addOutput("next", LiteGraph.EVENT);
+
+            if (nodeData.inputs) {
+                nodeData.inputs.forEach((input) => {
+                    this.addInput(input.name, input.type);
+                });
+            }
+
+            if (nodeData.widgets) {
+                nodeData.widgets.forEach((widget) => {
+                    this.addWidget(widget.type, widget.name, widget.value);
+                });
+            }
+
+            if (nodeData.outputs) {
+                nodeData.outputs.forEach((output) => {
+                    this.addOutput(output.name, output.type);
+                });
+            }
+        }
+
+        async onAction(event) {
+            console.log("onAction");
+            // Data to be sent to the server
+            const data = {
+                api: nodeData.type,
+                input: {},
+            };
+            var response = await fetch("http://localhost:6165/api", {
+                method: "POST", // Setting the method to POST
+                headers: {
+                    "Content-Type": "application/json", // Specifying the content type
+                },
+                body: JSON.stringify(data), // Converting the JavaScript object to a JSON string
+            });
+            var result = await response.json();
+            console.log(result.result.output);
+            if (result.result) {
+                this.setOutputData("output", result.result.output); // TODO: set output data according to the result
+            }
+            this.triggerSlot(0); // Trigger the next node
+        }
+    };
+    nodeClass.title = nodeData.title || "Unnamed";
+    nodeClass.desc = nodeData.desc || "No description";
+
+    LiteGraph.registerNodeType(nodeData.type, nodeClass);
+}
+
+async function initServersideNodes() {
+    const response = await fetch("http://localhost:6165/nodes");
+    if (!response.ok) {
+        throw new Error("Network response was not ok " + response.statusText);
+    }
+    const data = await response.json(); // Parse the JSON from the response
+    if (data.constructor == Array) {
+        data.forEach((nodeData) => {
+            registerServersideNodes(nodeData); // Process the data here
+        });
+    }
+}
+initServersideNodes().then(() => {
+    restoreGraph();
+});
+
+// == Auto Save ==
 window.onbeforeunload = function () {
     var data = JSON.stringify(graph.serialize());
     localStorage.setItem("litegraphg demo backup", data);
 };
-
-var data = localStorage.getItem("litegraphg demo backup");
-if (data) {
-    var graph_data = JSON.parse(data);
-    graph.configure(graph_data);
+function restoreGraph() {
+    var data = localStorage.getItem("litegraphg demo backup");
+    if (data) {
+        var graph_data = JSON.parse(data);
+        graph.configure(graph_data);
+    }
 }
