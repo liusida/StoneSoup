@@ -1,0 +1,3 @@
+[submodule "litegraph.js-daniel"]
+	path = litegraph.js-daniel
+	url = https://github.com/daniel-lewis-ab/litegraph.js.git
