@@ -41,6 +41,7 @@ async def serve_index():
 
 # Mount the plugins directory at /plugins
 app.mount("/plugins", StaticFiles(directory="plugins"), name="plugins")
+app.mount("/assets", StaticFiles(directory="assets"), name="assets")
 app.mount("/litegraph.js", StaticFiles(directory="litegraph.js-daniel"), name="litegraph_js_daniel")
 
 if __name__ == "__main__":
