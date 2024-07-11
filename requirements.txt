@@ -1,3 +1,6 @@
 fastapi
 pydantic
 uvicorn
+flask
+waitress
+

@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import uvicorn
 
 app = FastAPI()
 
@@ -18,11 +17,11 @@ app.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
-class InputData(BaseModel):
+class DoubleItInput(BaseModel):
     value: float
 
 @app.post("/func/doubleit")
-async def func_doubleit(data: InputData):
+async def func_doubleit(data: DoubleItInput):
     result = data.value * 2  # Example function logic
     return {"result": result}
 
@@ -32,4 +31,5 @@ async def test():
     return {"result": "success"}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=6165)
+    import uvicorn
+    uvicorn.run("server:app", host="0.0.0.0", port=6165, reload=True)
