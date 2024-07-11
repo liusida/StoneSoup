@@ -64,12 +64,12 @@ This project is currently working in progress, this section might not work due t
 
 Start the Python Server w/ auto-reload:
 ```
-python.exe -m uvicorn server:app --reload --port 6165
+python server.py
 ```
 
 Start the StoneSoup website w/ auto-reload:
 ```
-http-server -p 6166
+python client.py
 ```
 
 Access StoneSoup:
