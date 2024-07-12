@@ -3,7 +3,6 @@ import { LGraphCanvas } from "/litegraph/src/lgraphcanvas.js";
 import { LGraph } from "/litegraph/src/lgraph.js";
 import "./litegraph-settings.js";
 
-// Creates an interface to access extra features from a graph (like play, stop, live, etc)
 export class StoneSoupEditor {
     constructor(container_id) {
         const root = (this.root = document.createElement("div"));
@@ -51,7 +50,14 @@ export class StoneSoupEditor {
         window.onbeforeunload = function () {
             var data = JSON.stringify(graph.serialize());
             localStorage.setItem("litegraphg demo backup", data);
-        };        
+        };
+
+        // == Fill the window ==
+        window.addEventListener("resize", function () {
+            editor.graphcanvas.resize();
+            this.updateEditorHiPPICanvas();
+        });
+
     }
 
     restoreGraph() {
@@ -60,6 +66,21 @@ export class StoneSoupEditor {
             var graph_data = JSON.parse(data);
             graph.configure(graph_data);
         }
+    }
+    
+    updateEditorHiPPICanvas() {
+        const ratio = window.devicePixelRatio;
+        if (ratio == 1) {
+            return;
+        }
+        const rect = editor.canvas.parentNode.getBoundingClientRect();
+        const { width, height } = rect;
+        editor.canvas.width = width * ratio;
+        editor.canvas.height = height * ratio;
+        editor.canvas.style.width = width + "px";
+        editor.canvas.style.height = height + "px";
+        editor.canvas.getContext("2d").scale(ratio, ratio);
+        return editor.canvas;
     }
 
     onDropItem(e) {
@@ -83,26 +104,3 @@ var editor = new StoneSoupEditor("main");
 window.graphcanvas = editor.graphcanvas;
 window.graph = editor.graph;
 window.editor = editor;
-
-window.addEventListener("resize", function () {
-    editor.graphcanvas.resize();
-    updateEditorHiPPICanvas();
-});
-
-function updateEditorHiPPICanvas() {
-    const ratio = window.devicePixelRatio;
-    if (ratio == 1) {
-        return;
-    }
-    const rect = editor.canvas.parentNode.getBoundingClientRect();
-    const { width, height } = rect;
-    editor.canvas.width = width * ratio;
-    editor.canvas.height = height * ratio;
-    editor.canvas.style.width = width + "px";
-    editor.canvas.style.height = height + "px";
-    editor.canvas.getContext("2d").scale(ratio, ratio);
-    return editor.canvas;
-}
-
-
-
