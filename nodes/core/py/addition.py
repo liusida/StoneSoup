@@ -1,6 +1,6 @@
-class ConstInteger:
-    title = "Server-side Integer"
-    desc = "A Test Server-side Node"
+class NodeAddition:
+    title = "Server-side Addition"
+    desc = "Add the input `base` to widget `value`, return the sum."
 
     def __init__(self):
         pass
