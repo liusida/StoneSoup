@@ -1,6 +1,6 @@
-import { LiteGraph } from "/litegraph.js/src/litegraph.js";
-import { LGraphCanvas } from "/litegraph.js/src/lgraphcanvas.js";
-import { LGraph } from "/litegraph.js/src/lgraph.js";
+import { LiteGraph } from "/litegraph/src/litegraph.js";
+import { LGraphCanvas } from "/litegraph/src/lgraphcanvas.js";
+import { LGraph } from "/litegraph/src/lgraph.js";
 
 // Creates an interface to access extra features from a graph (like play, stop, live, etc)
 export class StoneSoupEditor {
@@ -197,7 +197,9 @@ function registerServersideNodes(nodeData) {
             var result = await response.json();
             console.log(result.result.output);
             if (result.result) {
-                this.setOutputData("output", result.result.output); // TODO: set output data according to the result
+                Object.entries(result.result).forEach(([slot, data]) => {
+                    this.setOutputData(slot, data);
+                });
             }
             this.triggerSlot(0); // Trigger the next node
         }

@@ -39,7 +39,7 @@ async def serve_index():
 # Mount directories
 app.mount("/plugins", StaticFiles(directory="plugins"), name="plugins")
 app.mount("/assets", StaticFiles(directory="assets"), name="assets")
-app.mount("/litegraph.js", StaticFiles(directory="litegraph.js-daniel"), name="litegraph_js_daniel")
+app.mount("/litegraph", StaticFiles(directory="lib/litegraph.js-daniel"), name="litegraph_tsx")
 
 if __name__ == "__main__":
     import uvicorn
