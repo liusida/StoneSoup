@@ -3,7 +3,14 @@ import { LiteGraph } from "/litegraph/src/litegraph.js";
 
 // LiteGraph.debug_level = 4; // -1 to disable all, now shows up to index of console['error','warning','info','log','debug']
 LiteGraph.logging_set_level(-1); // -1 to disable all, 4 is all on
+// Use UUIDs, and the UUIDs will be synchronized with the server-side nodes
+LiteGraph.use_uuids = true;
+// Don't use a mixture of modes. It's too complicated. Always use ALWAYS.
+LiteGraph.do_add_triggers_slots = false;
 
+
+
+//
 LiteGraph.catch_exceptions = true;
 LiteGraph.throw_errors = true;
 LiteGraph.allow_scripts = false; //if set to true some nodes like Formula would be allowed to evaluate code that comes from unsafe sources (like node configuration); which could lead to exploits
@@ -29,7 +36,6 @@ LiteGraph.slot_types_in = []; // slot types IN
 LiteGraph.slot_types_out = []; // slot types OUT*/
 
 LiteGraph.alt_drag_do_clone_nodes = true; // [true!] very handy; ALT click to clone and drag the new node
-LiteGraph.do_add_triggers_slots = true; // [true!] will create and connect event slots when using action/events connections; !WILL CHANGE node mode when using onTrigger (enable mode colors); onExecuted does not need this
 LiteGraph.allow_multi_output_for_events = false; // [false!] being events; it is strongly reccomended to use them sequentially; one by one
 LiteGraph.middle_click_slot_add_default_node = true;  //[true!] allows to create and connect a ndoe clicking with the third button (wheel)
 LiteGraph.release_link_on_empty_shows_menu = true; //[true!] dragging a link to empty space will open a menu, add from list, search or defaults
@@ -41,8 +47,6 @@ LiteGraph.actionHistory_enabled = false; // [true!] cntrlZ, cntrlY
 LiteGraph.actionHistoryMaxSave = 40;
 
 LiteGraph.showCanvasOptions = true;// enable canvas options panel, customize in LiteGrpah.availableCanvasOptions
-
-LiteGraph.use_uuids = true;
 
 /* -- EVENTS PROCESSING METHODS -- */
 
