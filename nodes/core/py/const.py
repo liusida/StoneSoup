@@ -1,4 +1,7 @@
 class ConstInteger:
+    title = "Server-side Integer"
+    desc = "A Test Server-side Node"
+    
     def __init__(self):
         pass
     
@@ -22,8 +25,6 @@ class ConstInteger:
             {"name": "output", "type": "INT"}
         ]
     
-    TITLE = "Server-side Integer"
-    FUNCTION = "exec"
-
-    def exec(self, int_value):
-        return (int_value,)
+    def main(self, base, value):
+        output = base + value
+        return (output,)

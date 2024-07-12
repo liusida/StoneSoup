@@ -1,6 +1,7 @@
 import { LiteGraph } from "/litegraph/src/litegraph.js";
 import { LGraphCanvas } from "/litegraph/src/lgraphcanvas.js";
 import { LGraph } from "/litegraph/src/lgraph.js";
+import "./litegraph-settings.js";
 
 // Creates an interface to access extra features from a graph (like play, stop, live, etc)
 export class StoneSoupEditor {
@@ -156,6 +157,7 @@ function registerServersideNodes(nodeData) {
     const nodeClass = class extends LiteGraph.LGraphNode {
         constructor(title) {
             super(title);
+            this.serverside_class = nodeData.serverside_class
 
             //All server-side nodes contain this event trigger
             this.addInput("", LiteGraph.EVENT);
@@ -184,9 +186,18 @@ function registerServersideNodes(nodeData) {
             console.log("onAction");
             // Data to be sent to the server
             const data = {
-                api: nodeData.type,
+                node_uuid: this.id,
+                serverside_class: nodeData.serverside_class,
                 input: {},
             };
+            this.inputs.forEach((item, slotIndex)=>{
+                if (item.type == LiteGraph.EVENT)
+                    return;
+                data.input[item.name] = this.getInputData(slotIndex);
+            });
+            this.widgets.forEach((item)=>{
+                data.input[item.name] = item.value;
+            });
             var response = await fetch("http://localhost:6165/api", {
                 method: "POST", // Setting the method to POST
                 headers: {
@@ -195,10 +206,10 @@ function registerServersideNodes(nodeData) {
                 body: JSON.stringify(data), // Converting the JavaScript object to a JSON string
             });
             var result = await response.json();
-            console.log(result.result.output);
+            console.log(result.result);
             if (result.result) {
                 Object.entries(result.result).forEach(([slot, data]) => {
-                    this.setOutputData(slot, data);
+                    this.setOutputData(Number(slot)+1, data); // +1 because the first slot is for the next EVENT
                 });
             }
             this.triggerSlot(0); // Trigger the next node
