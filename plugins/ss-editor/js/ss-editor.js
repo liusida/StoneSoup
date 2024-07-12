@@ -1,6 +1,7 @@
 import { LiteGraph } from "/litegraph/src/litegraph.js";
 import { LGraphCanvas } from "/litegraph/src/lgraphcanvas.js";
 import { LGraph } from "/litegraph/src/lgraph.js";
+import { StartNode } from "./node-start.js";
 import "./litegraph-settings.js";
 
 // Creates an interface to access extra features from a graph (like play, stop, live, etc)
@@ -9,10 +10,6 @@ export class StoneSoupEditor {
         const root = (this.root = document.createElement("div"));
         root.className = "litegraph litegraph-editor";
         root.innerHTML = `
-        <div class="header">
-            <div class="tools tools-left"></div>
-            <div class="tools tools-right"></div>
-        </div>
         <div class="content">
             <div class="editor-area">
                 <canvas class="graphcanvas" width="1000" height="500" tabindex="10"></canvas>
@@ -20,7 +17,6 @@ export class StoneSoupEditor {
         </div>
         `;
 
-        this.tools = root.querySelector(".tools");
         this.content = root.querySelector(".content");
 
         const canvas = (this.canvas = root.querySelector(".graphcanvas"));
@@ -42,21 +38,6 @@ export class StoneSoupEditor {
 
         graphcanvas.onDropItem = this.onDropItem.bind(this);
 
-        this.addToolsButton(
-            "playnode_button",
-            "Play",
-            "/plugins/ss-editor/assets/icon-play.png",
-            this.onPlayButton.bind(this),
-            ".tools-right"
-        );
-        this.addToolsButton(
-            "playstepnode_button",
-            "Step",
-            "/plugins/ss-editor/assets/icon-playstep.png",
-            this.onPlayStepButton.bind(this),
-            ".tools-right"
-        );
-
         // append to DOM
         const parent = document.getElementById(container_id);
         if (parent) {
@@ -65,49 +46,21 @@ export class StoneSoupEditor {
             throw new Error("Editor has no parentElement to bind to");
         }
 
-        graph.onPlayEvent = () => {
-            const button = this.root.querySelector("#playnode_button");
-            button.innerHTML = `<img src="/plugins/ss-editor/assets/icon-stop.png"/> Stop`;
-        };
-
-        graph.onStopEvent = () => {
-            const button = this.root.querySelector("#playnode_button");
-            button.innerHTML = `<img src="/plugins/ss-editor/assets/icon-play.png"/> Play`;
-        };
-
         graphcanvas.resize();
+
+        // == Auto Save ==
+        window.onbeforeunload = function () {
+            var data = JSON.stringify(graph.serialize());
+            localStorage.setItem("litegraphg demo backup", data);
+        };        
     }
 
-    addToolsButton(id, name, icon_url, callback, container = ".tools") {
-        const button = this.createButton(name, icon_url, callback);
-        button.id = id;
-        this.root.querySelector(container).appendChild(button);
-    }
-
-    createButton(name, icon_url, callback) {
-        const button = document.createElement("button");
-        if (icon_url) {
-            button.innerHTML = `<img src="${icon_url}"/> `;
+    restoreGraph() {
+        var data = localStorage.getItem("litegraphg demo backup");
+        if (data) {
+            var graph_data = JSON.parse(data);
+            graph.configure(graph_data);
         }
-        button.classList.add("btn");
-        button.innerHTML += name;
-        if (callback) button.addEventListener("click", callback);
-        return button;
-    }
-
-    onPlayButton() {
-        var graph = this.graph;
-        if (graph.status == LGraph.STATUS_STOPPED) {
-            graph.start();
-        } else {
-            graph.stop();
-        }
-    }
-
-    onPlayStepButton() {
-        var graph = this.graph;
-        graph.runStep(1);
-        this.graphcanvas.draw(true, true);
     }
 
     onDropItem(e) {
@@ -130,6 +83,7 @@ export class StoneSoupEditor {
 var editor = new StoneSoupEditor("main");
 window.graphcanvas = editor.graphcanvas;
 window.graph = editor.graph;
+window.editor = editor;
 
 window.addEventListener("resize", function () {
     editor.graphcanvas.resize();
@@ -151,101 +105,5 @@ function updateEditorHiPPICanvas() {
     return editor.canvas;
 }
 
-// == Register Nodes ==
-function registerServersideNodes(nodeData) {
-    console.log(nodeData);
-    const nodeClass = class extends LiteGraph.LGraphNode {
-        constructor(title) {
-            super(title);
-            this.serverside_class = nodeData.serverside_class
 
-            //All server-side nodes contain this event trigger
-            this.addInput("", LiteGraph.EVENT);
-            this.addOutput("next", LiteGraph.EVENT);
 
-            if (nodeData.inputs) {
-                nodeData.inputs.forEach((input) => {
-                    this.addInput(input.name, input.type);
-                });
-            }
-
-            if (nodeData.widgets) {
-                nodeData.widgets.forEach((widget) => {
-                    this.addWidget(widget.type, widget.name, widget.value);
-                });
-            }
-
-            if (nodeData.outputs) {
-                nodeData.outputs.forEach((output) => {
-                    this.addOutput(output.name, output.type);
-                });
-            }
-        }
-
-        async onAction(event) {
-            console.log("onAction");
-            // Data to be sent to the server
-            const data = {
-                node_uuid: this.id,
-                serverside_class: nodeData.serverside_class,
-                input: {},
-            };
-            this.inputs.forEach((item, slotIndex)=>{
-                if (item.type == LiteGraph.EVENT)
-                    return;
-                data.input[item.name] = this.getInputData(slotIndex);
-            });
-            this.widgets.forEach((item)=>{
-                data.input[item.name] = item.value;
-            });
-            var response = await fetch("http://localhost:6165/api", {
-                method: "POST", // Setting the method to POST
-                headers: {
-                    "Content-Type": "application/json", // Specifying the content type
-                },
-                body: JSON.stringify(data), // Converting the JavaScript object to a JSON string
-            });
-            var result = await response.json();
-            console.log(result.result);
-            if (result.result) {
-                Object.entries(result.result).forEach(([slot, data]) => {
-                    this.setOutputData(Number(slot)+1, data); // +1 because the first slot is for the next EVENT
-                });
-            }
-            this.triggerSlot(0); // Trigger the next node
-        }
-    };
-    nodeClass.title = nodeData.title || "Unnamed";
-    nodeClass.desc = nodeData.desc || "No description";
-
-    LiteGraph.registerNodeType(nodeData.type, nodeClass);
-}
-
-async function initServersideNodes() {
-    const response = await fetch("http://localhost:6165/nodes");
-    if (!response.ok) {
-        throw new Error("Network response was not ok " + response.statusText);
-    }
-    const data = await response.json(); // Parse the JSON from the response
-    if (data.constructor == Array) {
-        data.forEach((nodeData) => {
-            registerServersideNodes(nodeData); // Process the data here
-        });
-    }
-}
-initServersideNodes().then(() => {
-    restoreGraph();
-});
-
-// == Auto Save ==
-window.onbeforeunload = function () {
-    var data = JSON.stringify(graph.serialize());
-    localStorage.setItem("litegraphg demo backup", data);
-};
-function restoreGraph() {
-    var data = localStorage.getItem("litegraphg demo backup");
-    if (data) {
-        var graph_data = JSON.parse(data);
-        graph.configure(graph_data);
-    }
-}

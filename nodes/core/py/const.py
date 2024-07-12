@@ -1,7 +1,7 @@
 class ConstInteger:
     title = "Server-side Integer"
     desc = "A Test Server-side Node"
-    
+
     def __init__(self):
         pass
     
@@ -27,4 +27,5 @@ class ConstInteger:
     
     def main(self, base, value):
         output = base + value
+        print("main function called.")
         return (output,)
