@@ -11,8 +11,8 @@ function registerServersideNodes(nodeData) {
             this.serverside_class = nodeData.serverside_class
 
             //All server-side nodes contain this event trigger
-            this.addInput("", LiteGraph.EVENT);
-            this.addOutput("next", LiteGraph.EVENT);
+            this.addInput("onTrigger", LiteGraph.EVENT);
+            this.addOutput("onTrigger", LiteGraph.EVENT);
 
             if (nodeData.inputs) {
                 nodeData.inputs.forEach((input) => {

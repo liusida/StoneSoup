@@ -12,7 +12,7 @@ export class NodeStart {
             graph.start();
             that.triggerSlot(0);
         }, {} );
-        this.addOutput("", LiteGraph.EVENT);
+        this.addOutput("onTrigger", LiteGraph.EVENT);
     }
 }
 LiteGraph.registerNodeType("core/Start", NodeStart);
