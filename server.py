@@ -1,11 +1,15 @@
-from typing import Dict, Any
+from typing import Any, Dict, List
+from pathlib import Path
+from importlib import import_module
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import importlib
+import traceback
 
 app = FastAPI()
-g_nodes = {}
+running_nodes = {}
+# This list will store all node information
+all_nodes: List[Dict[str, Any]] = []
 
 # Define CORS settings
 origins = [
@@ -20,21 +24,49 @@ app.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
+def load_nodes_from_directory(directory: Path):
+    # Loop over each Python file in the directory
+    for file in directory.glob('*.py'):
+        module_name = file.stem  # Get the module name without '.py'
+        # Construct module path relative to the 'nodes' directory
+        relative_module_path = '.'.join(file.parts)[:-3]
+
+        # Import the module dynamically
+        module = import_module(relative_module_path)
+        
+        # Loop through each attribute in the module
+        for attr_name in dir(module):
+            attr = getattr(module, attr_name)
+            if isinstance(attr, type):  # Check if the attribute is a class
+                node = {
+                    'inputs': attr.INPUTS() if hasattr(attr, 'INPUTS') else [],
+                    'widgets': attr.WIDGETS() if hasattr(attr, 'WIDGETS') else [],
+                    'outputs': attr.OUTPUTS() if hasattr(attr, 'OUTPUTS') else [],
+                    'type': f"{file.parent.parent.name}/{attr.__name__}",
+                    'serverside_class': f"{relative_module_path}.{attr_name}",
+                    'title': getattr(attr, 'title', ''),
+                    'desc': getattr(attr, 'desc', '')
+                }
+                all_nodes.append(node)
+
+def load_all_nodes():
+    base_path = Path('./nodes')
+    # Check each subdirectory in the nodes directory
+    for pack_directory in base_path.iterdir():
+        if pack_directory.is_dir():
+            # Read each pack directory
+            for sub_dir in pack_directory.iterdir():
+                if sub_dir.is_dir() and sub_dir.name == 'py':
+                    load_nodes_from_directory(sub_dir)
+
+
+
+
 @app.get("/nodes")
 async def get_nodes():
-    nodes = []
-    node = {}
-    from nodes.core.py.const import ConstInteger
-    node['inputs'] = ConstInteger.INPUTS()
-    node['widgets'] = ConstInteger.WIDGETS()
-    node['outputs'] = ConstInteger.OUTPUTS()
-    node['type'] = f"core/{ConstInteger.__name__}"
-    node['serverside_class'] = f"core.py.const.ConstInteger"
-    node['title'] = ConstInteger.title
-    node['desc'] = ConstInteger.desc
-    nodes.append(node)
-
-    return nodes
+    if (len(all_nodes)==0):
+        load_all_nodes()
+    return all_nodes
 
 class APIInput(BaseModel):
     node_uuid: str
@@ -47,19 +79,26 @@ async def api(data: APIInput):
     print(data.input)
     print(data.node_uuid)
     # TODO: call that api's execution function and get result
-    if (data.node_uuid not in g_nodes):
-        # create the node on server-side
-        module_path, class_name = data.serverside_class.rsplit('.', 1)
-        module = importlib.import_module(f"nodes.{module_path}")
-        Class = getattr(module, class_name)
-        instance = Class()
-        g_nodes[data.node_uuid] = instance
-    
-    server_node = g_nodes[data.node_uuid]
+    try:
+        if (data.node_uuid not in running_nodes):
+            # create the node on server-side
+            module_path, class_name = data.serverside_class.rsplit('.', 1)
+            module = import_module(module_path)
+            Class = getattr(module, class_name)
+            instance = Class()
+            running_nodes[data.node_uuid] = instance
+        
+        server_node = running_nodes[data.node_uuid]
 
-    output = server_node.main(**data.input)
+        output = server_node.main(**data.input)
+        return {"result": output}
+    except Exception as e:
+        error_message = str(e)
+        error_traceback = traceback.format_exc()
+        print(error_traceback)  # Optionally log the traceback to server logs
+        # Return a structured response containing the error message and traceback
+        return {"error": error_message, "traceback": error_traceback}
 
-    return {"result": output}
 
 if __name__ == "__main__":
     import uvicorn

@@ -1,4 +1,5 @@
 import { LiteGraph } from "/litegraph/src/litegraph.js";
+import { LGraphCanvas } from "/litegraph/src/lgraphcanvas.js";
 import { StoneSoupEditor } from "./ss-editor.js";
 
 // == Register Nodes ==
@@ -56,13 +57,16 @@ function registerServersideNodes(nodeData) {
                 body: JSON.stringify(data), // Converting the JavaScript object to a JSON string
             });
             var result = await response.json();
-            console.log(result.result);
             if (result.result) {
                 Object.entries(result.result).forEach(([slot, data]) => {
                     this.setOutputData(Number(slot)+1, data); // +1 because the first slot is for the next EVENT
                 });
+                this.triggerSlot(0); // Trigger the next node
+            } else if (result.error) {
+                console.log(result.error);
+                // TODO: this error dialog is not pretty, maybe refine it later
+                editor.graphcanvas.createDialog(`<div id="error-dialog"><div><h1>${result.error}</h1></div><div><pre>${result.traceback}</pre></div></div>`, {position: [100,100]});
             }
-            this.triggerSlot(0); // Trigger the next node
         }
     };
     nodeClass.title = nodeData.title || "Unnamed";

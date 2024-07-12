@@ -1,7 +1,7 @@
 import { LiteGraph } from "/litegraph/src/litegraph.js";
 
-// == Start Node ==
-export class StartNode {
+// == Node: Start ==
+export class NodeStart {
 
     static title = "Start";
     static desc = "Start the workflow";
@@ -15,5 +15,4 @@ export class StartNode {
         this.addOutput("", LiteGraph.EVENT);
     }
 }
-LiteGraph.registerNodeType("Start", StartNode);
-
+LiteGraph.registerNodeType("core/Start", NodeStart);

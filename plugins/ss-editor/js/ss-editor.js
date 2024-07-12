@@ -1,7 +1,6 @@
 import { LiteGraph } from "/litegraph/src/litegraph.js";
 import { LGraphCanvas } from "/litegraph/src/lgraphcanvas.js";
 import { LGraph } from "/litegraph/src/lgraph.js";
-import { StartNode } from "./node-start.js";
 import "./litegraph-settings.js";
 
 // Creates an interface to access extra features from a graph (like play, stop, live, etc)

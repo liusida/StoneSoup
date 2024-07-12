@@ -1,24 +1,29 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from glob import glob
 import os
 import mimetypes
 mimetypes.add_type("application/javascript", ".js")
 
 app = FastAPI()
 
-# Function to generate script and link tags for plugins
-def generate_plugin_tags(plugins_dir):
+# Function to generate script and link tags for multiple directories
+def generate_tags(base_dirs):
     script_tags = []
     link_tags = []
-    for root, dirs, files in os.walk(plugins_dir):
-        for file in files:
-            if file.endswith(".js"):
-                script_path = os.path.relpath(os.path.join(root, file), plugins_dir)
-                script_tags.append(f'<script type="module" src="/plugins/{script_path}"></script>')
-            elif file.endswith(".css"):
-                css_path = os.path.relpath(os.path.join(root, file), plugins_dir)
-                link_tags.append(f'<link rel="stylesheet" href="/plugins/{css_path}">')
+    for base_dir in base_dirs:
+        js_files = glob(f"{base_dir}/*/js/*.js", recursive=True)
+        css_files = glob(f"{base_dir}/*/css/*.css", recursive=True)
+        print(js_files)
+        for js_file in js_files:
+            script_path = os.path.relpath(js_file, base_dir)
+            script_tags.append(f'<script type="module" src="/{base_dir}/{script_path}"></script>')
+        
+        for css_file in css_files:
+            css_path = os.path.relpath(css_file, base_dir)
+            link_tags.append(f'<link rel="stylesheet" href="/{base_dir}/{css_path}">')
+    
     return script_tags, link_tags
 
 @app.get("/", response_class=HTMLResponse)
@@ -26,7 +31,7 @@ async def serve_index():
     with open("web/index.html") as f:
         content = f.read()
     
-    script_tags, link_tags = generate_plugin_tags("plugins")
+    script_tags, link_tags = generate_tags(["plugins", "nodes"])
     script_tags_str = "\n".join(script_tags)
     link_tags_str = "\n".join(link_tags)
 
@@ -38,6 +43,7 @@ async def serve_index():
 
 # Mount directories
 app.mount("/plugins", StaticFiles(directory="plugins"), name="plugins")
+app.mount("/nodes", StaticFiles(directory="nodes"), name="nodes")
 app.mount("/assets", StaticFiles(directory="assets"), name="assets")
 app.mount("/litegraph", StaticFiles(directory="lib/litegraph.js-daniel"), name="litegraph_tsx")
 
