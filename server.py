@@ -3,6 +3,7 @@ from pathlib import Path
 from importlib import import_module
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import traceback
 
@@ -30,7 +31,7 @@ def load_nodes_from_directory(directory: Path):
         module_name = file.stem  # Get the module name without '.py'
         # Construct module path relative to the 'nodes' directory
         relative_module_path = '.'.join(file.parts)[:-3]
-
+        
         # Import the module dynamically
         module = import_module(relative_module_path)
         
@@ -99,6 +100,7 @@ async def api(data: APIInput):
         # Return a structured response containing the error message and traceback
         return {"error": error_message, "traceback": error_traceback}
 
+app.mount("/input", StaticFiles(directory="input"), name="input")
 
 if __name__ == "__main__":
     import uvicorn
