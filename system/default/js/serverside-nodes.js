@@ -1,6 +1,4 @@
 import { LiteGraph } from "/litegraph/src/litegraph.js";
-import { LGraphCanvas } from "/litegraph/src/lgraphcanvas.js";
-import { StoneSoupEditor } from "./ss-editor.js";
 
 // == Register Nodes ==
 function registerServersideNodes(nodeData) {
@@ -8,6 +6,7 @@ function registerServersideNodes(nodeData) {
     const nodeClass = class extends LiteGraph.LGraphNode {
         constructor(title) {
             super(title);
+            console.log("constructor");
             this.serverside_class = nodeData.serverside_class
             this.shape = "card"
 
@@ -34,8 +33,9 @@ function registerServersideNodes(nodeData) {
             }
         }
 
-        async onAction(event) {
+        async onAction(action, param, options, action_slot) {
             console.log("onAction");
+            console.log(LiteGraph.registered_node_init_func);
             // Data to be sent to the server
             const data = {
                 node_uuid: this.id,
@@ -50,7 +50,7 @@ function registerServersideNodes(nodeData) {
             this.widgets.forEach((item)=>{
                 data.input[item.name] = item.value;
             });
-            var response = await fetch("http://localhost:6165/api", {
+            var response = await fetch(`${server_url}/api`, {
                 method: "POST", // Setting the method to POST
                 headers: {
                     "Content-Type": "application/json", // Specifying the content type
@@ -66,7 +66,7 @@ function registerServersideNodes(nodeData) {
             } else if (result.error) {
                 console.log(result.error);
                 // TODO: this error dialog is not pretty, maybe refine it later
-                editor.graphcanvas.createDialog(`<div id="error-dialog"><div><h1>${result.error}</h1></div><div><pre>${result.traceback}</pre></div></div>`, {position: [100,100]});
+                graphcanvas.createDialog(`<div id="error-dialog"><div><h1>${result.error}</h1></div><div><pre>${result.traceback}</pre></div></div>`, {position: [100,100]});
             }
         }
     };
@@ -74,10 +74,11 @@ function registerServersideNodes(nodeData) {
     nodeClass.desc = nodeData.desc || "No description";
 
     LiteGraph.registerNodeType(nodeData.type, nodeClass);
+    nodeClass.onRegistered?.();
 }
 
-async function initServersideNodes() {
-    const response = await fetch("http://localhost:6165/nodes");
+export async function initServersideNodes() {
+    const response = await fetch(`${server_url}/nodes`);
     if (!response.ok) {
         throw new Error("Network response was not ok " + response.statusText);
     }
@@ -88,6 +89,14 @@ async function initServersideNodes() {
         });
     }
 }
-initServersideNodes().then(() => {
-    editor.restoreGraph();
-});
+
+LiteGraph.registered_node_init_func = {};
+LiteGraph.registerInitFunction = (type, func) => {
+    LiteGraph.registered_node_init_func[type] = func;
+}
+LiteGraph.onNodeTypeRegistered = (type, base_class) => {
+    if (LiteGraph.registered_node_init_func[type]) {
+        // replace the base_class with the extended class
+        LiteGraph.registered_node_types[type] = LiteGraph.registered_node_init_func[type](base_class);
+    }
+}
