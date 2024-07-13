@@ -8,6 +8,8 @@ mimetypes.add_type("application/javascript", ".js")
 
 app = FastAPI()
 
+server_url = "http://localhost:6165"
+
 # Function to generate script and link tags for multiple directories
 def generate_tags(base_dirs):
     script_tags = []
@@ -31,17 +33,18 @@ async def serve_index():
     with open("web/index.html") as f:
         content = f.read()
     
-    script_tags, link_tags = generate_tags(["plugins", "nodes"])
+    script_tags, link_tags = generate_tags(["system", "plugins", "nodes"])
     script_tags_str = "\n".join(script_tags)
     link_tags_str = "\n".join(link_tags)
-
+    
     # Inject the tags before closing </body> and </head> tags
     content = content.replace("</head>", f"{link_tags_str}\n</head>")
-    content = content.replace("</body>", f"{script_tags_str}\n</body>")
+    content = content.replace("</body>", f"<script>window.server_url='{server_url}';</script>\n{script_tags_str}\n</body>")
 
     return HTMLResponse(content=content)
 
 # Mount directories
+app.mount("/system", StaticFiles(directory="system"), name="system")
 app.mount("/plugins", StaticFiles(directory="plugins"), name="plugins")
 app.mount("/nodes", StaticFiles(directory="nodes"), name="nodes")
 app.mount("/assets", StaticFiles(directory="assets"), name="assets")
