@@ -1,7 +1,7 @@
 import { LiteGraph } from "/litegraph/src/litegraph.js";
 import { LGraphCanvas } from "/litegraph/src/lgraphcanvas.js";
 import { LGraph } from "/litegraph/src/lgraph.js";
-import "./litegraph-settings.js";
+import { initServersideNodes } from "/system/default/js/serverside-nodes.js";
 
 export class StoneSoupEditor {
     constructor(container_id) {
@@ -24,6 +24,8 @@ export class StoneSoupEditor {
             graph
         ));
 
+        var that = this;
+        
         graphcanvas.show_info = false;
 
         graphcanvas.background_image =
@@ -55,7 +57,7 @@ export class StoneSoupEditor {
         // == Fill the window ==
         window.addEventListener("resize", function () {
             editor.graphcanvas.resize();
-            this.updateEditorHiPPICanvas();
+            that.updateEditorHiPPICanvas();
         });
 
     }
@@ -104,3 +106,7 @@ var editor = new StoneSoupEditor("main");
 window.graphcanvas = editor.graphcanvas;
 window.graph = editor.graph;
 window.editor = editor;
+
+initServersideNodes().then(() => {
+    editor.restoreGraph();
+});

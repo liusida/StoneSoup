@@ -20,7 +20,7 @@ class NodeAccumulation:
     @classmethod
     def OUTPUTS(s):
         return [
-            {"name": "output", "type": "INT"}
+            {"name": "output", "type": "number"}
         ]
     
     def main(self, inc):
