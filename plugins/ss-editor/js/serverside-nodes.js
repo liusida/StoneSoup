@@ -9,6 +9,7 @@ function registerServersideNodes(nodeData) {
         constructor(title) {
             super(title);
             this.serverside_class = nodeData.serverside_class
+            this.shape = "card"
 
             //All server-side nodes contain this event trigger
             this.addInput("onTrigger", LiteGraph.EVENT);
