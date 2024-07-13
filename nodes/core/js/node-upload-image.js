@@ -5,6 +5,7 @@ export class NodeUploadImage {
 
     static title = "Upload Image";
     static desc = "Upload an image from local file system";
+    static min_height = 200;
 
     constructor() {
         var that = this;
@@ -15,6 +16,8 @@ export class NodeUploadImage {
             that.uploadImage();
         }, {});
         this.addOutput("Image", "image");
+
+        this.widget_height = 60;
     }
 
     uploadImage() {
@@ -51,7 +54,9 @@ export class NodeUploadImage {
             this.filename = data.filename;
             this.img = new Image();
             this.img.src = `http://localhost:6165/input/${data.filename}`;
-            this.setDirtyCanvas(true);
+            this.img.onload = () => {
+                this.setDirtyCanvas(true);
+            }
         })
         .catch((error) => {
             console.error('Error:', error);
@@ -60,7 +65,16 @@ export class NodeUploadImage {
 
     onDrawForeground(ctx) {
         if (this.img) {
-            ctx.drawImage(this.img, 0, this.size[1] + 10, 200, 200);
+            const maxWidth = this.size[0];
+            const maxHeight = this.size[1] - this.widget_height;
+            const ratio = Math.min(maxWidth / this.img.width, maxHeight / this.img.height);
+            const width = this.img.width * ratio;
+            const height = this.img.height * ratio;
+
+            const x = (maxWidth - width) / 2;
+            const y = this.widget_height + (maxHeight - height) / 2;
+
+            ctx.drawImage(this.img, x, y, width, height);
             this.setDirtyCanvas(true);
         }
     }
