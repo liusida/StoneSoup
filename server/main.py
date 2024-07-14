@@ -7,7 +7,13 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import traceback
 
+# allow import from the project directory
+import sys, os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from server.py.node import Node
+
 app = FastAPI()
+
 running_nodes = {}
 # This list will store all node information
 all_nodes: List[Dict[str, Any]] = []
@@ -31,14 +37,17 @@ def load_nodes_from_directory(directory: Path):
         module_name = file.stem  # Get the module name without '.py'
         # Construct module path relative to the 'nodes' directory
         relative_module_path = '.'.join(file.parts)[:-3]
-        
+
         # Import the module dynamically
         module = import_module(relative_module_path)
-        
+        # To add Routers (which can be thought of as a mini FastAPI application) to your main FastAPI app
+        if hasattr(module, 'app') and isinstance(module.app, FastAPI):
+            app.include_router(module.app.router)
+
         # Loop through each attribute in the module
         for attr_name in dir(module):
             attr = getattr(module, attr_name)
-            if isinstance(attr, type):  # Check if the attribute is a class
+            if isinstance(attr, type) and issubclass(attr, Node) and attr is not Node:  # Check if the attribute is a subclass of Node
                 node = {
                     'inputs': attr.INPUTS() if hasattr(attr, 'INPUTS') else [],
                     'widgets': attr.WIDGETS() if hasattr(attr, 'WIDGETS') else [],
@@ -100,8 +109,8 @@ async def api(data: APIInput):
         # Return a structured response containing the error message and traceback
         return {"error": error_message, "traceback": error_traceback}
 
-app.mount("/input", StaticFiles(directory="input"), name="input")
+app.mount("/input", StaticFiles(directory="server/input"), name="input")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("server:app", host="0.0.0.0", port=6165, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=6165, reload=True)

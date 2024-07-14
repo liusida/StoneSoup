@@ -64,12 +64,12 @@ This project is currently working in progress, this section might not work due t
 
 Start the Python Server w/ auto-reload:
 ```
-python server.py
+python server/main.py
 ```
 
 Start the StoneSoup website w/ auto-reload:
 ```
-python client.py
+python client/main.py
 ```
 
 Access StoneSoup:

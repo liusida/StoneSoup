@@ -11,6 +11,7 @@ export class NodeUploadImage {
         var that = this;
         this.image = null; // Store the selected image
         this.image_url = null; // Store the URL of the uploaded image
+        this.shape = "card";
 
         this.addWidget("button", "Upload Image", null, function() {
             that.uploadImage();
@@ -42,6 +43,7 @@ export class NodeUploadImage {
 
     postImage(file) {
         const formData = new FormData();
+        formData.append('id', this.id);
         formData.append('file', file);
 
         fetch('http://localhost:6165/upload', {

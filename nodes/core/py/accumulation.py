@@ -1,4 +1,6 @@
-class NodeAccumulation:
+from server.py.node import Node
+
+class NodeAccumulation (Node):
     title = "Server-side Accumulation"
     desc = "Start from 0, add 1 each time, return the sum."
 
