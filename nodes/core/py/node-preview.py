@@ -44,7 +44,6 @@ async def post_preview(request: PreviewRequest):
         "X-Image-Width": str(width),
         "X-Image-Height": str(height)
     }
-    print(headers)
 
     # Save the image tensor as an image file
     image_bytes = get_image_bytes(image_tensor)

@@ -21,7 +21,7 @@ async def lifespan(app: FastAPI):
     # Pre-warm PyTorch operations
     dummy_array = np.array([0], dtype=np.float32)
     dummy_tensor = torch.from_numpy(dummy_array).to(GlobalSettings.device)
-    print("Pre-warming complete: Dummy tensor created.")
+    print("Pre-warming PyTorch completed.")
     yield
     # Clean up the ML models and release the resources
 
