@@ -1,18 +1,31 @@
 from typing import Any, Dict, List
 from pathlib import Path
 from importlib import import_module
+import torch
+import numpy as np
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from contextlib import asynccontextmanager
 from pydantic import BaseModel
 import traceback
 
 # allow import from the project directory
-import sys, os
+import sys, os, shutil
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from server.py.global_settings import GlobalSettings
 from server.py.node import Node
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Pre-warm PyTorch operations
+    dummy_array = np.array([0], dtype=np.float32)
+    dummy_tensor = torch.from_numpy(dummy_array).to(GlobalSettings.device)
+    print("Pre-warming complete: Dummy tensor created.")
+    yield
+    # Clean up the ML models and release the resources
+
+app = FastAPI(lifespan=lifespan)
 
 running_nodes = {}
 # This list will store all node information
@@ -29,6 +42,8 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],  # Allow all methods (GET, POST, etc.)
     allow_headers=["*"],  # Allow all headers
+    expose_headers=["X-Image-Width", "X-Image-Height"],  # Explicitly expose the custom headers
+
 )
 
 def load_nodes_from_directory(directory: Path):
@@ -109,7 +124,14 @@ async def api(data: APIInput):
         # Return a structured response containing the error message and traceback
         return {"error": error_message, "traceback": error_traceback}
 
-app.mount("/input", StaticFiles(directory="server/input"), name="input")
+# Create folder for input if not exsits
+os.makedirs(GlobalSettings.input_dir_physical, exist_ok=True)
+app.mount(f"{GlobalSettings.input_dir}", StaticFiles(directory=f"{GlobalSettings.input_dir_physical}"), name="input")
+# Recreate folder for temp
+if os.path.exists(GlobalSettings.temp_dir_physical):
+    shutil.rmtree(GlobalSettings.temp_dir_physical)
+os.makedirs(GlobalSettings.temp_dir_physical, exist_ok=True)
+app.mount(f"{GlobalSettings.temp_dir}", StaticFiles(directory=f"{GlobalSettings.temp_dir_physical}"), name="temp")
 
 if __name__ == "__main__":
     import uvicorn

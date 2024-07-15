@@ -16,7 +16,7 @@ export class NodeUploadImage {
         this.addWidget("button", "Upload Image", null, function() {
             that.uploadImage();
         }, {});
-        this.addOutput("Image", "image");
+        this.addOutput("image", "image");
 
         this.widget_height = 60;
     }
@@ -59,6 +59,8 @@ export class NodeUploadImage {
             this.img.onload = () => {
                 this.setDirtyCanvas(true);
             }
+            console.log(`msg:  ${data.id}__${data.pointer}`);
+            this.setOutputData("image", `${data.id}__${data.pointer}`);
         })
         .catch((error) => {
             console.error('Error:', error);
@@ -78,12 +80,6 @@ export class NodeUploadImage {
 
             ctx.drawImage(this.img, x, y, width, height);
             this.setDirtyCanvas(true);
-        }
-    }
-
-    onExecute() {
-        if (this.image) {
-            this.setOutputData(0, this.image);
         }
     }
 }

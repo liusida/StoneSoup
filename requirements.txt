@@ -5,3 +5,4 @@ torchaudio
 fastapi
 pydantic
 uvicorn
+Pillow

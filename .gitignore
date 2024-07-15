@@ -1,6 +1,8 @@
 graveyard
 input
 output
+models
+tmp
 tmp.*
 
 # Byte-compiled / optimized / DLL files
