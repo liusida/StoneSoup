@@ -44,11 +44,14 @@ async def get_preview(image_pointer: str = Query(..., description="The image poi
         "X-Image-Height": str(height)
     }
 
+    filename = f"{uuid.uuid4()}.png"
+    save_image_tensor(image_tensor, f"{GlobalSettings.temp_dir_physical}/{filename}")
     # Save the image tensor as an image file
-    image_bytes = get_image_bytes(image_tensor)
+    # image_bytes = get_image_bytes(image_tensor)
     
     end_time = time.time()  # Record the end time
     duration = end_time - start_time  # Calculate the duration
     print(f"get_preview execution time: {duration:.2f} seconds")  # Log the duration
 
-    return StreamingResponse(image_bytes, media_type="image/png", headers=headers)
+    # return StreamingResponse(image_bytes, media_type="image/png", headers=headers)
+    return {"url": f"{GlobalSettings.temp_dir}/{filename}", "headers": headers}
