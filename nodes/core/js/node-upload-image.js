@@ -46,7 +46,7 @@ export class NodeUploadImage {
         formData.append('id', this.id);
         formData.append('file', file);
 
-        fetch('http://localhost:6165/upload', {
+        fetch(`${server_url}/upload`, {
             method: 'POST',
             body: formData
         })
@@ -55,7 +55,7 @@ export class NodeUploadImage {
             console.log('Success:', data);
             this.filename = data.filename;
             this.img = new Image();
-            this.img.src = `http://localhost:6165/input/${data.filename}`;
+            this.img.src = `${server_url}/input/${data.filename}`;
             this.img.onload = () => {
                 this.setDirtyCanvas(true);
             }
