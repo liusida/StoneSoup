@@ -1,10 +1,11 @@
 import os
 import uuid
+import time
 from io import BytesIO
 from PIL import Image
 import numpy as np
 import torch
-from fastapi import FastAPI, File, Form, UploadFile
+from fastapi import FastAPI, Query, File, Form, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from server.py.global_settings import GlobalSettings
@@ -27,12 +28,10 @@ def get_image_bytes(image_tensor):
     image_bytes.seek(0)
     return image_bytes
 
-class PreviewRequest(BaseModel):
-    image_pointer: str
-
-@app.post("/preview")
-async def post_preview(request: PreviewRequest):
-    id, name = request.image_pointer.split("__")
+@app.get("/preview")
+async def get_preview(image_pointer: str = Query(..., description="The image pointer in the format 'id__name'")):
+    start_time = time.time()  # Record the start time
+    id, name = image_pointer.split("__")
     image_tensor = GlobalCache.get(id, name) # [1, H, W, C]
     # save a tmp image 
     if image_tensor is None:
@@ -48,4 +47,8 @@ async def post_preview(request: PreviewRequest):
     # Save the image tensor as an image file
     image_bytes = get_image_bytes(image_tensor)
     
+    end_time = time.time()  # Record the end time
+    duration = end_time - start_time  # Calculate the duration
+    print(f"get_preview execution time: {duration:.2f} seconds")  # Log the duration
+
     return StreamingResponse(image_bytes, media_type="image/png", headers=headers)

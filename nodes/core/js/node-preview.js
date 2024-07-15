@@ -28,53 +28,67 @@ export class NodePreviewImage {
                 this.img.height = this.imageHeight;
             }
 
-            const response = await fetch(`${server_url}/preview`, {
-                method: "POST",
+            const response = await fetch(`${server_url}/preview?image_pointer=${encodeURIComponent(image_pointer)}`, {
+                method: "GET",
                 headers: {
                     "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ image_pointer: image_pointer }),
+                }
             });
-
             // Extract image dimensions from headers
             this.imageWidth = parseInt(response.headers.get("X-Image-Width"));
             this.imageHeight = parseInt(response.headers.get("X-Image-Height"));
 
-            const body = response.body;
-            const reader = body.getReader();
-            this.chunks = [];
-            const updateInterval = 1000; // Time interval in milliseconds
+            if (false) {
+                const blob = await response.blob();
+                const imageUrl = URL.createObjectURL(blob);
 
-            const updateImage = () => {
-                if (this.chunks.length > 0) {
-                    const blob = new Blob(this.chunks, { type: "image/png" });
-                    const imageUrl = URL.createObjectURL(blob);
+                // Pre-load the image to avoid blinking
+                const tempImg = new Image();
+                tempImg.onload = () => {
+                    this.img.src = imageUrl;
+                    this.setDirtyCanvas(true);
+                };
+                tempImg.src = imageUrl;
 
-                    // Pre-load the image to avoid blinking
-                    const tempImg = new Image();
-                    tempImg.onload = () => {
-                        this.img.src = imageUrl;
-                        this.setDirtyCanvas(true);
-                    };
-                    tempImg.src = imageUrl;
-                }
-            };
+                // Trigger the next node
+                this.triggerSlot(0);
+            } else {
+                const body = response.body;
+                const reader = body.getReader();
+                this.chunks = [];
+                const updateInterval = 1000; // Time interval in milliseconds
 
-            const intervalId = setInterval(updateImage.bind(this), updateInterval);
+                const updateImage = () => {
+                    if (this.chunks.length > 0) {
+                        const blob = new Blob(this.chunks, { type: "image/png" });
+                        const imageUrl = URL.createObjectURL(blob);
 
-            const process = async ({ done, value }) => {
-                if (done) {
-                    clearInterval(intervalId); // Clear the interval when done
-                    updateImage.call(this); // Final update
-                    this.triggerSlot(0); // Trigger the next node
-                    return;
-                }
+                        // Pre-load the image to avoid blinking
+                        const tempImg = new Image();
+                        tempImg.onload = () => {
+                            this.img.src = imageUrl;
+                            this.setDirtyCanvas(true);
+                        };
+                        tempImg.src = imageUrl;
+                    }
+                };
 
-                this.chunks.push(value);
+                const intervalId = setInterval(updateImage.bind(this), updateInterval);
+
+                const process = async ({ done, value }) => {
+                    if (done) {
+                        clearInterval(intervalId); // Clear the interval when done
+                        updateImage.call(this); // Final update
+                        this.triggerSlot(0); // Trigger the next node
+                        return;
+                    }
+
+                    this.chunks.push(value);
+                    reader.read().then(process.bind(this));
+                };
+
                 reader.read().then(process.bind(this));
-            };
-
-            reader.read().then(process.bind(this));
+            }
         }
     }
 
