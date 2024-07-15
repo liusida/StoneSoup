@@ -39,41 +39,32 @@ export class NodePreviewImage {
             this.imageHeight = parseInt(data.headers["X-Image-Height"]);
             const imageUrl = new URL(data.url, server_url).href;
 
+
             const imageResponse = await fetch(imageUrl);
             const reader = imageResponse.body.getReader();
             this.chunks = [];
 
-            const updateImage = () => {
-                if (this.chunks.length > 0) {
+            const process = async ({ done, value }) => {
+                if (done) {
                     const blob = new Blob(this.chunks, { type: "image/png" });
                     const tempImg = new Image();
                     tempImg.onload = () => {
                         this.img.src = URL.createObjectURL(blob);
                         this.setDirtyCanvas(true);
+                        this.triggerSlot(0); // Trigger the next node after the image is fully loaded
                     };
                     tempImg.src = URL.createObjectURL(blob);
-                }
-            };
-
-            const process = async ({ done, value }) => {
-                if (done) {
-                    updateImage(); // Final update
-                    this.triggerSlot(0); // Trigger the next node
                     return;
                 }
 
                 this.chunks.push(value);
-                updateImage(); // Update the image with the new chunk
                 reader.read().then(process);
             };
 
             reader.read().then(process);
-        
-            // Trigger the next node
-            this.triggerSlot(0);
         }
     }
-
+    
     onDrawForeground(ctx) {
         if (this.img && this.img.src) {
             const maxWidth = this.size[0];
