@@ -11,7 +11,7 @@ export class NodePreviewImage {
         this.image = null; // Store the selected image
         this.image_url = null; // Store the URL of the uploaded image
         this.shape = "card";
-        this.addInput("OnTrigger", LiteGraph.EVENT);
+        this.addInput("onTrigger", LiteGraph.EVENT);
         this.addInput("image", "image");
 
         this.widget_height = 60;
