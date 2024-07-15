@@ -3,12 +3,15 @@ import { LGraphNode } from "/litegraph/src/lgraphnode.js";
 
 class NodeForLoop {
     constructor() {
-        this.title = "for (i=0; i<n; i++) { loop }";
+        this.title = "ForLoop";
         this.addInput("onTrigger", LiteGraph.EVENT);
-        this.addInput("loop", LiteGraph.EVENT);
-        this.addOutput("onTrigger", LiteGraph.EVENT);
-        this.addOutput("i", "number", "0");
-        this.addWidget("number", "n", 10).options.step = 10;
+        this.addInput("Break", LiteGraph.EVENT);
+        this.addOutput("Loop Body", LiteGraph.EVENT);
+        this.addOutput("Completed", LiteGraph.EVENT);
+        this.addOutput("Index", "number", "0");
+        this.addWidget("number", "First Index", 1).options.step = 10;
+        this.addWidget("number", "Last Index", 10).options.step = 10;
+        this.addWidget("number", "Step", 1).options.step = 10;
         this.i = 0;
     }
 
