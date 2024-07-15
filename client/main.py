@@ -8,7 +8,7 @@ mimetypes.add_type("application/javascript", ".js")
 
 app = FastAPI()
 
-server_url = "http://localhost:6165"
+server_url = None # don't need a custom server_url
 
 # Function to generate script and link tags for multiple directories
 def generate_tags(base_dirs):
@@ -40,7 +40,13 @@ async def serve_index():
     
     # Inject the tags before closing </body> and </head> tags
     content = content.replace("</head>", f"{link_tags_str}\n</head>")
-    content = content.replace("</body>", f"<script>window.server_url='{server_url}';</script>\n{script_tags_str}\n</body>")
+    if server_url:
+        server_url_script = f"<script>window.server_url='{server_url}';</script>"
+    else:
+        # Use the hostname of the browser with port 6165
+        server_url_script = "<script>window.server_url=window.location.protocol + '//' + window.location.hostname + ':6165';</script>"
+
+    content = content.replace("</body>", f"{server_url_script}\n{script_tags_str}\n</body>")
 
     return HTMLResponse(content=content)
 
