@@ -1,7 +1,6 @@
 // adopted from https://github.com/pythongosssss/ComfyUI-Custom-Scripts/
 import { LGraphCanvas } from "/litegraph/src/lgraphcanvas.js";
 
-let getDrawTextConfig = null;
 let fileInput;
 
 class WorkflowImage {
@@ -35,6 +34,8 @@ class WorkflowImage {
             scale: graphcanvas.ds.scale,
             width: graphcanvas.canvas.width,
             height: graphcanvas.canvas.height,
+            bgwidth: graphcanvas.bgcanvas.width,
+            bgheight: graphcanvas.bgcanvas.height,
             offset: graphcanvas.ds.offset,
         };
     }
@@ -43,6 +44,8 @@ class WorkflowImage {
         graphcanvas.ds.scale = this.state.scale;
         graphcanvas.canvas.width = this.state.width;
         graphcanvas.canvas.height = this.state.height;
+        graphcanvas.bgcanvas.width = this.state.bgwidth;
+        graphcanvas.bgcanvas.height = this.state.bgheight;
         graphcanvas.ds.offset = this.state.offset;
     }
 
@@ -50,15 +53,9 @@ class WorkflowImage {
         graphcanvas.ds.scale = 1;
         graphcanvas.canvas.width = bounds[2] - bounds[0];
         graphcanvas.canvas.height = bounds[3] - bounds[1];
+        graphcanvas.bgcanvas.width = bounds[2] - bounds[0];
+        graphcanvas.bgcanvas.height = bounds[3] - bounds[1];
         graphcanvas.ds.offset = [-bounds[0], -bounds[1]];
-    }
-
-    getDrawTextConfig(_, widget) {
-        return {
-            x: 10,
-            y: widget.last_y + 10,
-            resetTransform: false,
-        };
     }
 
     async export(includeWorkflow) {
@@ -68,9 +65,7 @@ class WorkflowImage {
         this.updateView(this.getBounds());
 
         // Flag that we are saving and render the canvas
-        getDrawTextConfig = this.getDrawTextConfig;
         graphcanvas.draw(true, true);
-        getDrawTextConfig = null;
 
         // Generate a blob of the image containing the workflow
         const blob = await this.getBlob(
