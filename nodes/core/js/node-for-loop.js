@@ -5,7 +5,6 @@ class NodeForLoop {
     constructor() {
         this.title = "ForLoop";
         this.addInput("onTrigger", LiteGraph.EVENT);
-        this.addInput("Break", LiteGraph.EVENT);
         this.addOutput("Next", "ForLoopID");
         this.addOutput("Loop Body", LiteGraph.EVENT);
         this.addOutput("Completed", LiteGraph.EVENT);

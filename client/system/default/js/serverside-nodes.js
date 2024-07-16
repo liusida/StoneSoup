@@ -3,10 +3,9 @@ import { LiteGraph } from "/litegraph/src/litegraph.js";
 // == Register Nodes ==
 function registerServersideNodes(nodeData) {
     console.log(nodeData);
-    const nodeClass = class extends LiteGraph.LGraphNode {
+    const nodeClass = class {
         constructor(title) {
-            super(title);
-            console.log("constructor");
+            this.title = title;
             this.serverside_class = nodeData.serverside_class
             this.shape = "card"
 
