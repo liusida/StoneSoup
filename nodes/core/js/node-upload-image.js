@@ -56,6 +56,7 @@ export class NodeUploadImage {
             this.filename = data.filename;
             this.img = new Image();
             this.img.src = `${server_url}/input/${data.filename}`;
+            this.img.crossOrigin = "anonymous";
             this.img.onload = () => {
                 this.setDirtyCanvas(true);
             }
