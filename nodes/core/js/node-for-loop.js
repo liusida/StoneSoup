@@ -29,11 +29,12 @@ class NodeForLoop {
 
     step() {
         if (this.index<=this.getWidgetValueByName("Last Index")) {
+            this.index++;
+            this.setOutputData(3, this.index);
             this.triggerSlot(1);
         } else {
             this.triggerSlot(2);
         }
-        this.index++;
     }
     
     async onAction(action, param, options, action_slot) {
