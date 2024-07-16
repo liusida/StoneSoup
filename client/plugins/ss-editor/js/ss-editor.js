@@ -27,6 +27,9 @@ export class StoneSoupEditor {
         var that = this;
         
         graphcanvas.show_info = false;
+        // Show connection arrows 
+        graphcanvas.render_connection_arrows = true;
+
 
         graphcanvas.background_image =
             "/plugins/ss-editor/assets/ss-bg-dark.png";
