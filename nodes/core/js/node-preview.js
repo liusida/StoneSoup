@@ -21,56 +21,58 @@ export class NodePreviewImage {
 
     async onAction() {
         const image_pointer = this.getInputData(1);
-        if (image_pointer) {
-            if (!this.img) {
-                this.img = new Image();
-            }
-
-            const response = await fetch(`${server_url}/preview?image_pointer=${encodeURIComponent(image_pointer)}`, {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                }
-            });
-
-
-            const data = await response.json();
-            this.imageWidth = parseInt(data.headers["X-Image-Width"]);
-            this.imageHeight = parseInt(data.headers["X-Image-Height"]);
-            const imageUrl = new URL(data.url, server_url).href;
-
-            // Fetch image as a stream
-            const imageResponse = await fetch(imageUrl);
-            const reader = imageResponse.body.getReader();
-            this.chunks = [];
-            const updateInterval = 1000; // Time interval in milliseconds
-
-            const updateImage = () => {
-                if (this.chunks.length > 0) {
-                    const blob = new Blob(this.chunks, { type: "image/png" });
-                    const tempImg = new Image();
-                    tempImg.onload = () => {
-                        this.img.src = tempImg.src;
-                        this.setDirtyCanvas(true);
-                    };
-                    tempImg.src = URL.createObjectURL(blob);
-                }
-            };
-            const intervalId = setInterval(updateImage.bind(this), updateInterval);
-
-            const process = async ({ done, value }) => {
-                if (done) {
-                    clearInterval(intervalId); // Clear the interval when done
-                    updateImage.call(this); // Final update
-                    this.triggerSlot(0); // Trigger the next node
-                    return;
-                }
-                this.chunks.push(value);
-                reader.read().then(process);
-            };
-
-            reader.read().then(process);
+        if (!image_pointer) {
+            graphcanvas.createDialog("no images to preview.");
+            return;
         }
+        if (!this.img) {
+            this.img = new Image();
+        }
+
+        const response = await fetch(`${server_url}/preview?image_pointer=${encodeURIComponent(image_pointer)}`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+            }
+        });
+
+
+        const data = await response.json();
+        this.imageWidth = parseInt(data.headers["X-Image-Width"]);
+        this.imageHeight = parseInt(data.headers["X-Image-Height"]);
+        const imageUrl = new URL(data.url, server_url).href;
+
+        // Fetch image as a stream
+        const imageResponse = await fetch(imageUrl);
+        const reader = imageResponse.body.getReader();
+        this.chunks = [];
+        const updateInterval = 1000; // Time interval in milliseconds
+
+        const updateImage = () => {
+            if (this.chunks.length > 0) {
+                const blob = new Blob(this.chunks, { type: "image/png" });
+                const tempImg = new Image();
+                tempImg.onload = () => {
+                    this.img.src = tempImg.src;
+                    this.setDirtyCanvas(true);
+                };
+                tempImg.src = URL.createObjectURL(blob);
+            }
+        };
+        const intervalId = setInterval(updateImage.bind(this), updateInterval);
+
+        const process = async ({ done, value }) => {
+            if (done) {
+                clearInterval(intervalId); // Clear the interval when done
+                updateImage.call(this); // Final update
+                this.triggerSlot(0); // Trigger the next node
+                return;
+            }
+            this.chunks.push(value);
+            reader.read().then(process);
+        };
+
+        reader.read().then(process);
     }
 
     onDrawForeground(ctx) {
