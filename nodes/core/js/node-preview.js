@@ -20,6 +20,10 @@ export class NodePreviewImage {
     }
 
     async onAction() {
+        if (this.complete) {
+            this.triggerSlot(0); // Trigger the next node
+            return;
+        }
         const image_pointer = this.getInputData(1);
         if (!image_pointer) {
             graphcanvas.createDialog("no images to preview.");
@@ -65,6 +69,7 @@ export class NodePreviewImage {
             if (done) {
                 clearInterval(intervalId); // Clear the interval when done
                 updateImage.call(this); // Final update
+                this.complete = true;
                 this.triggerSlot(0); // Trigger the next node
                 return;
             }

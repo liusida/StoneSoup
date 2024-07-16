@@ -10,9 +10,16 @@ export class NodeStart {
         var that=this;
         this.addWidget("button","Start", null, function(v){
             graph.start();
+            that.processCache();
             that.triggerSlot(0);
         }, {} );
         this.addOutput("onTrigger", LiteGraph.EVENT);
+    }
+
+    processCache() {
+        graph._nodes.forEach(node => {
+            console.log(node);
+        });
     }
 }
 LiteGraph.registerNodeType("core/Start", NodeStart);

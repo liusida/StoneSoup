@@ -25,7 +25,9 @@ export class NodeUploadImage {
         var input = document.createElement('input');
         input.type = 'file';
         input.accept = 'image/*';
+        var that=this;
         input.onchange = (event) => {
+            that.onChange(that);
             var file = event.target.files[0];
             if (file) {
                 var reader = new FileReader();
