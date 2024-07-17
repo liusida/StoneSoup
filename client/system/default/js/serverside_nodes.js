@@ -64,8 +64,7 @@ function registerServersideNodes(nodeData) {
                 this.triggerSlot(0); // Trigger the next node
             } else if (result.error) {
                 console.log(result.error);
-                // TODO: this error dialog is not pretty, maybe refine it later
-                graphcanvas.createDialog(`<div id="error-dialog"><div><h1>${result.error}</h1></div><div><pre>${result.traceback}</pre></div></div>`, {position: [100,100]});
+                ui.showMessageBox(`<div id="error-dialog"><div><h1>${result.error}</h1></div><div><pre>${result.traceback}</pre></div></div>`, {position: [100,100]});
             }
         }
     };

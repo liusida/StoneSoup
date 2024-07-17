@@ -43,7 +43,7 @@ class NodeForLoop {
         var that=this;
         var next = this.getOutputNodes(0);
         if (next==null || next.length<=0) {
-            graphcanvas.createDialog("Please connect to the ForLoopNext Node");
+            ui.showMessageBox("Please connect to the ForLoopNext Node");
             return;
         }
         next.forEach(node => {
@@ -65,7 +65,7 @@ class NodeForLoopNext {
         if (this.stepFunction) {
             this.stepFunction.call();
         } else {
-            graphcanvas.createDialog("Please connect to the ForLoop Node");
+            ui.showMessageBox("Please connect to the ForLoop Node");
         }
     }
 }

@@ -26,7 +26,7 @@ export class NodePreviewImage {
         }
         const image_pointer = this.getInputData(1);
         if (!image_pointer) {
-            graphcanvas.createDialog("no images to preview.");
+            ui.showMessageBox("no images to preview.");
             return;
         }
         if (!this.img) {
