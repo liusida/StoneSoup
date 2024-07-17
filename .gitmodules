@@ -1,3 +1,6 @@
 [submodule "client/lib/litegraph.js-daniel"]
 	path = client/lib/litegraph.js-daniel
 	url = https://github.com/daniel-lewis-ab/litegraph.js.git
+[submodule "client/lib/litegraph.tsx"]
+	path = client/lib/litegraph.tsx
+	url = https://github.com/litegraph-tsx/litegraph.tsx.git

@@ -62,6 +62,12 @@ Here is the nodes in the `mini` version (I think I'll use them more):
 
 This project is currently working in progress, this section might not work due to frequent change of source code.
 
+Get the code and the submodule (LiteGraph)
+```
+git clone https://github.com/liusida/StoneSoup.git
+git submodule update --init --recursive
+```
+
 Start the Python Server w/ auto-reload:
 ```
 python server/main.py
@@ -76,6 +82,8 @@ Access StoneSoup:
 ```
 http://localhost:6166/
 ```
+
+Add your first node, the `Start` node, and other nodes like `Upload Image` or `Preview Image` nodes.
 
 ## Plugins and Nodes
 
