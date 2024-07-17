@@ -76,3 +76,21 @@ Access StoneSoup:
 ```
 http://localhost:6166/
 ```
+
+## Plugins and Nodes
+
+Put your Javascript plugins in the folder `./client/plugins/` and the system'll automatically load them into the client web.
+
+Put your custom nodes in the folder `./nodes/` and they'll be automatically integrated to the system.
+
+There are 3 kinds of nodes:
+
+1. Pure Javascript nodes;
+
+2. Pure Python nodes;
+
+3. Javascript nodes with Python API entrypoints.
+
+Examples can be found in `./node/example_custom_nodes/`.
+
+P.S. Javascript files should be in `js` subfolder, Python files should be in `py` subfolders, in order to be automatically loaded.
