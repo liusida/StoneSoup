@@ -1,5 +1,3 @@
-import { LiteGraph } from "/litegraph/src/litegraph.js";
-
 // == Node: Start ==
 export class NodeStart {
 

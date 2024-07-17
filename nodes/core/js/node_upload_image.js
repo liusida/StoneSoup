@@ -1,5 +1,3 @@
-import { LiteGraph } from "/litegraph/src/litegraph.js";
-
 // == Node: Upload Image ==
 export class NodeUploadImage {
 

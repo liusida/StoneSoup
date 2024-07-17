@@ -1,5 +1,3 @@
-import { LGraphNode } from "/litegraph/src/lgraphnode.js";
-
 LGraphNode.prototype.onChange = (node) => {
     node.complete = false;
     for (let slot=0; slot<node.outputs.length; slot++) {
@@ -13,4 +11,8 @@ LGraphNode.prototype.onChange = (node) => {
             })
         }
     }
+}
+
+LGraphNode.prototype.onWidgetChanged = () => {
+    console.log("onWidgetChanged");
 }

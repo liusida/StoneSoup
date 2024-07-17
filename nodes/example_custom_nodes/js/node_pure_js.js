@@ -1,5 +1,3 @@
-import { LiteGraph } from "/litegraph/src/litegraph.js";
-
 // == Node: Example_Pure_JS ==
 export class NodeExample_Pure_JS {
 

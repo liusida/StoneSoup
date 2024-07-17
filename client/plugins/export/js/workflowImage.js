@@ -1,5 +1,4 @@
 // adopted from https://github.com/pythongosssss/ComfyUI-Custom-Scripts/
-import { LGraphCanvas } from "/litegraph/src/lgraphcanvas.js";
 
 let fileInput;
 

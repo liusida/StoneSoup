@@ -1,8 +1,6 @@
 
-import { LiteGraph } from "/litegraph/src/litegraph.js";
-
 // LiteGraph.debug_level = 4; // -1 to disable all, now shows up to index of console['error','warning','info','log','debug']
-LiteGraph.logging_set_level(-1); // -1 to disable all, 4 is all on
+// LiteGraph.logging_set_level(-1); // -1 to disable all, 4 is all on
 // Use UUIDs, and the UUIDs will be synchronized with the server-side nodes
 LiteGraph.use_uuids = true;
 // Don't use a mixture of modes. It's too complicated. Always use ALWAYS.

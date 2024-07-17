@@ -1,5 +1,3 @@
-import { LiteGraph } from "/litegraph/src/litegraph.js";
-
 export class NodeVertical {
 
     static title = "";

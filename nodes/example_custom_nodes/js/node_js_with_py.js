@@ -1,5 +1,3 @@
-import { LiteGraph } from "/litegraph/src/litegraph.js";
-
 // == Node: Example_JS_Py ==
 export class NodeExample_JS_Py {
 
@@ -9,7 +7,7 @@ export class NodeExample_JS_Py {
     constructor() {
         var that=this;
         this.addInput("onTrigger", LiteGraph.EVENT);
-        this.addWidget("string", "name", "Tom");
+        this.addWidget("string", "name", "Tom", this.onWidgetChanged);
         this.addOutput("onTrigger", LiteGraph.EVENT);
     }
     async onAction() {

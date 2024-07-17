@@ -1,5 +1,3 @@
-import { LiteGraph } from "/litegraph/src/litegraph.js";
-
 export class NodePreviewImage {
     static title = "Preview Image";
     static desc = "Preview an image";

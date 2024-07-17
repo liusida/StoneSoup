@@ -56,7 +56,11 @@ app.mount("/nodes", StaticFiles(directory="nodes"), name="nodes")
 app.mount("/system", StaticFiles(directory="client/system"), name="system")
 app.mount("/plugins", StaticFiles(directory="client/plugins"), name="plugins")
 app.mount("/assets", StaticFiles(directory="client/assets"), name="assets")
-app.mount("/litegraph", StaticFiles(directory="client/lib/litegraph.js-daniel"), name="litegraph_tsx")
+
+app.mount("/litegraph", StaticFiles(directory="client/lib/litegraph.js-daniel/src/"), name="litegraph")
+app.mount("/litegraph_css", StaticFiles(directory="client/lib/litegraph.js-daniel/css/"), name="litegraph_css")
+# app.mount("/litegraph", StaticFiles(directory="client/lib/litegraph.tsx/src/core/"), name="litegraph")
+# app.mount("/litegraph_css", StaticFiles(directory="client/lib/litegraph.tsx/css/"), name="litegraph_css")
 
 if __name__ == "__main__":
     import uvicorn

@@ -1,6 +1,3 @@
-import { LiteGraph } from "/litegraph/src/litegraph.js";
-import { LGraphNode } from "/litegraph/src/lgraphnode.js";
-
 class NodeForLoop {
     constructor() {
         this.title = "ForLoop";
@@ -9,9 +6,9 @@ class NodeForLoop {
         this.addOutput("Loop Body", LiteGraph.EVENT);
         this.addOutput("Completed", LiteGraph.EVENT);
         this.addOutput("Index", "number", "0");
-        this.addWidget("number", "First Index", 1).options.step = 10;
-        this.addWidget("number", "Last Index", 3).options.step = 10;
-        this.addWidget("number", "Step", 1).options.step = 10;
+        this.addWidget("number", "First Index", 1, this.onWidgetChanged).options.step = 10;
+        this.addWidget("number", "Last Index", 3, this.onWidgetChanged).options.step = 10;
+        this.addWidget("number", "Step", 1, this.onWidgetChanged).options.step = 10;
         this.index = 0;
     }
 

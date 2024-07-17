@@ -1,5 +1,3 @@
-import { LiteGraph } from "/litegraph/src/litegraph.js";
-
 // == Register Nodes ==
 function registerServersideNodes(nodeData) {
     console.log(nodeData);
@@ -21,7 +19,7 @@ function registerServersideNodes(nodeData) {
 
             if (nodeData.widgets) {
                 nodeData.widgets.forEach((widget) => {
-                    this.addWidget(widget.type, widget.name, widget.value);
+                    this.addWidget(widget.type, widget.name, widget.value, this.onWidgetChanged);
                 });
             }
 

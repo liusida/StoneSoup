@@ -1,6 +1,3 @@
-import { LiteGraph } from "/litegraph/src/litegraph.js";
-import { LGraphCanvas } from "/litegraph/src/lgraphcanvas.js";
-import { LGraph } from "/litegraph/src/lgraph.js";
 import { initServersideNodes } from "/system/default/js/serverside_nodes.js";
 
 export class StoneSoupEditor {
