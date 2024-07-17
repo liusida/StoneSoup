@@ -1,6 +1,6 @@
-from server.py.node import Node
+from server.py.node_template import NodeTemplate
 
-class NodeAccumulation (Node):
+class NodeAccumulation (NodeTemplate):
     title = "Server-side Accumulation"
     desc = "Start from 0, add 1 each time, return the sum."
 

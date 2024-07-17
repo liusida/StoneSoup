@@ -1,7 +1,7 @@
 import { LiteGraph } from "/litegraph/src/litegraph.js";
 import { LGraphCanvas } from "/litegraph/src/lgraphcanvas.js";
 import { LGraph } from "/litegraph/src/lgraph.js";
-import { initServersideNodes } from "/system/default/js/serverside-nodes.js";
+import { initServersideNodes } from "/system/default/js/serverside_nodes.js";
 
 export class StoneSoupEditor {
     constructor(container_id) {
@@ -32,7 +32,7 @@ export class StoneSoupEditor {
 
 
         graphcanvas.background_image =
-            "/plugins/ss-editor/assets/ss-bg-dark.png";
+            "/plugins/ss_editor/assets/ss_bg_dark.png";
         graphcanvas._pattern = null; // hack: need to reset pattern after set background image
 
         graph.onAfterExecute = () => {

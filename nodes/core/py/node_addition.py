@@ -1,6 +1,6 @@
-from server.py.node import Node
+from server.py.node_template import NodeTemplate
 
-class NodeAddition (Node):
+class NodeAddition (NodeTemplate):
     title = "Server-side Addition"
     desc = "Add the input `base` to widget `value`, return the sum."
 

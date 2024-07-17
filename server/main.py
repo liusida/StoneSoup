@@ -14,7 +14,7 @@ import traceback
 import sys, os, shutil
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from server.py.global_settings import GlobalSettings
-from server.py.node import Node
+from server.py.node_template import NodeTemplate
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -62,7 +62,7 @@ def load_nodes_from_directory(directory: Path):
         # Loop through each attribute in the module
         for attr_name in dir(module):
             attr = getattr(module, attr_name)
-            if isinstance(attr, type) and issubclass(attr, Node) and attr is not Node:  # Check if the attribute is a subclass of Node
+            if isinstance(attr, type) and issubclass(attr, NodeTemplate) and attr is not NodeTemplate:  # Check if the attribute is a subclass of NodeTemplate
                 node = {
                     'inputs': attr.INPUTS() if hasattr(attr, 'INPUTS') else [],
                     'widgets': attr.WIDGETS() if hasattr(attr, 'WIDGETS') else [],
