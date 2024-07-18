@@ -6,3 +6,4 @@ fastapi
 pydantic
 uvicorn
 Pillow
+safetensors

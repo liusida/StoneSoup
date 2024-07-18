@@ -1,0 +1,4 @@
+models:
+  Stable Diffusion 1.5:
+    store_path: SD15/SD15.safetensors
+    url: https://huggingface.co/runwayml/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.safetensors

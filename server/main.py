@@ -55,6 +55,7 @@ def load_nodes_from_directory(directory: Path):
 
         # Import the module dynamically
         module = import_module(relative_module_path)
+
         # To add Routers (which can be thought of as a mini FastAPI application) to your main FastAPI app
         if hasattr(module, 'app') and isinstance(module.app, FastAPI):
             app.include_router(module.app.router)
@@ -100,10 +101,9 @@ class APIInput(BaseModel):
 
 @app.post("/api")
 async def api(data: APIInput):
-    print(data.serverside_class)
-    print(data.input)
-    print(data.node_uuid)
-    # TODO: call that api's execution function and get result
+    # print(data.serverside_class)
+    # print(data.input)
+    # print(data.node_uuid)
     try:
         if (data.node_uuid not in running_nodes):
             # create the node on server-side
@@ -114,6 +114,8 @@ async def api(data: APIInput):
             running_nodes[data.node_uuid] = instance
         
         server_node = running_nodes[data.node_uuid]
+
+        server_node.download_assets()
 
         output = server_node.main(**data.input)
         return {"result": output}

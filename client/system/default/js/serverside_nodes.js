@@ -19,7 +19,11 @@ function registerServersideNodes(nodeData) {
 
             if (nodeData.widgets) {
                 nodeData.widgets.forEach((widget) => {
-                    this.addWidget(widget.type, widget.name, widget.value, this.onWidgetChanged);
+                    if (widget.type=="combo" && widget.value.constructor==Array) {
+                        this.addWidget(widget.type, widget.name, widget.value[0], this.onWidgetChanged, {values: widget.value});
+                    } else {
+                        this.addWidget(widget.type, widget.name, widget.value, this.onWidgetChanged);
+                    }
                 });
             }
 

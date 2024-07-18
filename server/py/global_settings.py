@@ -14,4 +14,6 @@ class GlobalSettings:
     temp_dir_physical = "server/tmp"
     temp_dir = "/tmp"
 
+    models_dir_physical = "server/models"
+
     device = device
