@@ -22,6 +22,7 @@ function registerServersideNodes(nodeData) {
                     if (widget.type=="combo" && widget.value.constructor==Array) {
                         this.addWidget(widget.type, widget.name, widget.value[0], this.onWidgetChanged, {values: widget.value});
                     } else {
+                        console.log(widget.type);
                         this.addWidget(widget.type, widget.name, widget.value, this.onWidgetChanged);
                     }
                 });
