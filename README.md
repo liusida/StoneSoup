@@ -102,3 +102,9 @@ There are 3 kinds of nodes:
 Examples can be found in `./node/example_custom_nodes/`.
 
 P.S. Javascript files should be in `js` subfolder, Python files should be in `py` subfolders, in order to be automatically loaded.
+
+## Here is the current progress
+
+Now if ComfyUI is present in your environment, StoneSoup can also utilize the nodes from ComfyUI.
+
+![StoneSoup_import_ComfyUI](images/workflow_comfyui_default.png)
