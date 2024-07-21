@@ -30,7 +30,7 @@ function registerServersideNodes(nodeData) {
                             widget.type,
                             widget.name,
                             widget.value[0],
-                            this.onWidgetChanged,
+                            null,
                             { values: widget.value }
                         );
                     } else {
@@ -52,7 +52,7 @@ function registerServersideNodes(nodeData) {
                             widget.type,
                             widget.name,
                             default_value,
-                            this.onWidgetChanged
+                            null,
                         );
                     }
                 });
@@ -67,6 +67,10 @@ function registerServersideNodes(nodeData) {
 
         async onAction(action, param, options, action_slot) {
             await super.onAction(action, param, options, action_slot);
+            if (this.complete) {
+                this.triggerNextNode();
+                return;
+            }
             // Data to be sent to the server
             const data = {
                 node_uuid: this.id,
