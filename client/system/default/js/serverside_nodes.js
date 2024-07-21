@@ -1,8 +1,11 @@
+import { NodeTemplate } from './node.js';
+
 // == Register Nodes ==
 function registerServersideNodes(nodeData) {
     console.log(nodeData);
-    const nodeClass = class {
+    class nodeClass extends NodeTemplate {
         constructor(title) {
+            super();
             this.title = title;
             this.serverside_class = nodeData.serverside_class
             this.shape = "card"
@@ -36,9 +39,7 @@ function registerServersideNodes(nodeData) {
         }
 
         async onAction(action, param, options, action_slot) {
-            console.log("onAction");
-            console.log(LiteGraph.registered_node_init_func);
-            this.running = true;
+            await super.onAction(action, param, options, action_slot);
             // Data to be sent to the server
             const data = {
                 node_uuid: this.id,
@@ -65,8 +66,7 @@ function registerServersideNodes(nodeData) {
                 Object.entries(result.result).forEach(([slot, data]) => {
                     this.setOutputData(Number(slot)+1, data); // +1 because the first slot is for the next EVENT
                 });
-                this.triggerSlot(0); // Trigger the next node
-                this.running = false;
+                this.triggerNextNode();
             } else if (result.error) {
                 console.log(result.error);
                 ui.showMessageBox(`<div id="error-dialog"><div><h1>${result.error}</h1></div><div><pre>${result.traceback}</pre></div></div>`, {position: [100,100]});

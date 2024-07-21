@@ -1,10 +1,13 @@
-export class NodePreviewImage {
+import { NodeTemplate } from "../../../client/system/default/js/node.js";
+
+export class NodePreviewImage extends NodeTemplate {
     static title = "Preview Image";
     static desc = "Preview an image";
     static min_height = 200;
     static updateFrequency = 5;
 
     constructor() {
+        super();
         var that = this;
         this.image = null; // Store the selected image
         this.image_url = null; // Store the URL of the uploaded image
@@ -18,10 +21,9 @@ export class NodePreviewImage {
     }
 
     async onAction() {
-        this.running = true;
+        await super.onAction();
         if (this.complete) {
-            this.triggerSlot(0); // Trigger the next node
-            this.running = false;
+            this.triggerNextNode();
             return;
         }
         const image_pointer = this.getInputData(1);
@@ -70,7 +72,7 @@ export class NodePreviewImage {
                 clearInterval(intervalId); // Clear the interval when done
                 updateImage.call(this); // Final update
                 this.complete = true;
-                this.triggerSlot(0); // Trigger the next node
+                this.triggerNextNode();
                 return;
             }
             this.chunks.push(value);

@@ -1,3 +1,6 @@
+// Working in progress
+// TODO: detect widget change, trigger onChange?
+
 LGraphNode.prototype.onChange = (node) => {
     node.complete = false;
     for (let slot=0; slot<node.outputs.length; slot++) {
