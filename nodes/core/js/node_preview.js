@@ -1,4 +1,4 @@
-import { NodeTemplate } from "../../../client/system/default/js/node.js";
+import { NodeTemplate } from "/system/default/js/node.js";
 
 export class NodePreviewImage extends NodeTemplate {
     static title = "Preview Image";
@@ -26,10 +26,13 @@ export class NodePreviewImage extends NodeTemplate {
             this.triggerNextNode();
             return;
         }
-        const image_pointer = this.getInputData(1);
+        var image_pointer = this.getInputData(1);
         if (!image_pointer) {
             ui.showMessageBox("no images to preview.");
             return;
+        }
+        if (typeof image_pointer === 'object') {
+            image_pointer = JSON.stringify(image_pointer);
         }
         if (!this.img) {
             this.img = new Image();

@@ -1,6 +1,7 @@
 import os
 import uuid
 import time
+import json
 from io import BytesIO
 from PIL import Image
 import numpy as np
@@ -30,8 +31,9 @@ def get_image_bytes(image_tensor):
 
 @app.get("/preview")
 async def get_preview(image_pointer: str = Query(..., description="The image pointer in the format 'id__name'")):
+    image_pointer = json.loads(image_pointer)
     start_time = time.time()  # Record the start time
-    id, name = image_pointer.split("__")
+    id, name = image_pointer["id"], image_pointer["name"]
     image_tensor = GlobalCache.get(id, name) # [1, H, W, C]
     # save a tmp image 
     if image_tensor is None:

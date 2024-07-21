@@ -61,7 +61,7 @@ export class NodeUploadImage {
                 this.setDirtyCanvas(true);
             }
             console.log(`msg:  ${data.id}__${data.pointer}`);
-            this.setOutputData("image", `${data.id}__${data.pointer}`);
+            this.setOutputData("image", data);
         })
         .catch((error) => {
             console.error('Error:', error);

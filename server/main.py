@@ -1,6 +1,7 @@
 from typing import Any, Dict, List
 from pathlib import Path
 from importlib import import_module
+import json
 import torch
 import numpy as np
 from fastapi import FastAPI
@@ -14,6 +15,7 @@ import traceback
 import sys, os, shutil
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from server.py.global_settings import GlobalSettings
+from server.py.cache import GlobalCache
 from server.py.node_template import NodeTemplate
 from server.py.custom_logs import logging
 logger = logging.getLogger("server")
@@ -93,19 +95,17 @@ def load_nodes_from_file(file: Path, white_list=None):
 
             for key, value in inputs.items():
                 if len(value) > 0:
+                    options = None
                     if isinstance(value[0], list):
                         widget_item = {"type": "combo", "name": key, "value": value[0]}
                         widgets_list.append(widget_item)
                     elif len(value) > 1 and isinstance(value[1], dict):
-                        if "default" in value[1]:
-                            widget_value = value[1]["default"]
-                        else:
-                            widget_value = value[1]
-                        if value[0]=="INT":
+                        options = value[1]
+                        if value[0]=="INT" or value[0]=="FLOAT":
                             widget_type = "number" #TODO: Widget type should support int!
                         else:
                             widget_type = value[0]
-                        widget_item = {"type": widget_type, "name": key, "value": widget_value}
+                        widget_item = {"type": widget_type, "name": key, "options": options}
                         widgets_list.append(widget_item)
                     else:
                         input_item = {"name": key, "type": value[0]}
@@ -151,7 +151,7 @@ def load_all_nodes():
         folder_paths.folder_names_and_paths["checkpoints"][0].append(os.path.abspath('./server/models/'))
         ckpts = folder_paths.get_filename_list("checkpoints")
 
-        load_nodes_from_file(comfy_nodes_file_path, ["CheckpointLoaderSimple"])
+        load_nodes_from_file(comfy_nodes_file_path, white_list=["CheckpointLoaderSimple", "CLIPTextEncode", "KSampler", "EmptyLatentImage", "VAEDecode"])
 
 @app.get("/nodes")
 async def get_nodes():
@@ -187,6 +187,11 @@ async def api(data: APIInput):
         else:
             func = server_node.main
 
+        temp = data.input
+        for key, value in data.input.items():
+            if isinstance(value, dict) and "pointer" in value and value["pointer"]=="object":
+                data.input[key] = GlobalCache.get(value["id"], value["name"])
+
         with torch.inference_mode():
             # enter inference mode to speed up (and avoid "RuntimeError: a leaf Variable that requires grad is being used in an in-place operation."), no training allowed.
             output = func(**data.input)
@@ -195,8 +200,9 @@ async def api(data: APIInput):
         for i, obj in enumerate(output):
             if isinstance(obj, object):
                 full_classname = f"{obj.__class__.__module__}.{obj.__class__.__qualname__}"
-                output[i] = f"object: {full_classname}" # TODO: save the object to cache and give a reference pointer to the client
-
+                GlobalCache.set(data.node_uuid, full_classname, obj)
+                output[i] = {"id": data.node_uuid, "name": full_classname, "pointer": "object"} # TODO: save the object to cache and give a reference pointer to the client
+        logger.info( json.dumps({"result": output}) )
         return {"result": output}
     except Exception as e:
         error_message = str(e)

@@ -1,4 +1,4 @@
-import { NodeTemplate } from './node.js';
+import { NodeTemplate } from "./node.js";
 
 // == Register Nodes ==
 function registerServersideNodes(nodeData) {
@@ -7,8 +7,8 @@ function registerServersideNodes(nodeData) {
         constructor(title) {
             super();
             this.title = title;
-            this.serverside_class = nodeData.serverside_class
-            this.shape = "card"
+            this.serverside_class = nodeData.serverside_class;
+            this.shape = "card";
 
             //All server-side nodes contain this event trigger
             this.addInput("onTrigger", LiteGraph.EVENT);
@@ -22,11 +22,38 @@ function registerServersideNodes(nodeData) {
 
             if (nodeData.widgets) {
                 nodeData.widgets.forEach((widget) => {
-                    if (widget.type=="combo" && widget.value.constructor==Array) {
-                        this.addWidget(widget.type, widget.name, widget.value[0], this.onWidgetChanged, {values: widget.value});
+                    if (
+                        widget.type == "combo" &&
+                        widget.value.constructor == Array
+                    ) {
+                        this.addWidget(
+                            widget.type,
+                            widget.name,
+                            widget.value[0],
+                            this.onWidgetChanged,
+                            { values: widget.value }
+                        );
                     } else {
                         console.log(widget.type);
-                        this.addWidget(widget.type, widget.name, widget.value, this.onWidgetChanged);
+                        var default_value;
+                        if (widget.value) {
+                            default_value = widget.value;
+                        } else if (
+                            widget.options &&
+                            widget.options["default"]
+                        ) {
+                            default_value = widget.options.default;
+                        } else {
+                            if (widget.type == "STRING") default_value = "";
+                            else if (widget.type == "number") default_value = 0;
+                            else console.warn("Not implemented.");
+                        }
+                        this.addWidget(
+                            widget.type,
+                            widget.name,
+                            default_value,
+                            this.onWidgetChanged
+                        );
                     }
                 });
             }
@@ -46,12 +73,11 @@ function registerServersideNodes(nodeData) {
                 serverside_class: nodeData.serverside_class,
                 input: {},
             };
-            this.inputs.forEach((item, slotIndex)=>{
-                if (item.type == LiteGraph.EVENT)
-                    return;
+            this.inputs?.forEach((item, slotIndex) => {
+                if (item.type == LiteGraph.EVENT) return;
                 data.input[item.name] = this.getInputData(slotIndex);
             });
-            this.widgets.forEach((item)=>{
+            this.widgets?.forEach((item) => {
                 data.input[item.name] = item.value;
             });
             var response = await fetch(`${server_url}/api`, {
@@ -64,15 +90,18 @@ function registerServersideNodes(nodeData) {
             var result = await response.json();
             if (result.result) {
                 Object.entries(result.result).forEach(([slot, data]) => {
-                    this.setOutputData(Number(slot)+1, data); // +1 because the first slot is for the next EVENT
+                    this.setOutputData(Number(slot) + 1, data); // +1 because the first slot is for the next EVENT
                 });
                 this.triggerNextNode();
             } else if (result.error) {
                 console.log(result.error);
-                ui.showMessageBox(`<div id="error-dialog"><div><h1>${result.error}</h1></div><div><pre>${result.traceback}</pre></div></div>`, {position: [100,100]});
+                ui.showMessageBox(
+                    `<div id="error-dialog"><div><h1>${result.error}</h1></div><div><pre>${result.traceback}</pre></div></div>`,
+                    { position: [100, 100] }
+                );
             }
         }
-    };
+    }
     nodeClass.title = nodeData.title || "Unnamed";
     nodeClass.desc = nodeData.desc || "No description";
 
@@ -96,10 +125,11 @@ export async function initServersideNodes() {
 LiteGraph.registered_node_init_func = {};
 LiteGraph.registerInitFunction = (type, func) => {
     LiteGraph.registered_node_init_func[type] = func;
-}
+};
 LiteGraph.onNodeTypeRegistered = (type, base_class) => {
     if (LiteGraph.registered_node_init_func[type]) {
         // replace the base_class with the extended class
-        LiteGraph.registered_node_types[type] = LiteGraph.registered_node_init_func[type](base_class);
+        LiteGraph.registered_node_types[type] =
+            LiteGraph.registered_node_init_func[type](base_class);
     }
-}
+};

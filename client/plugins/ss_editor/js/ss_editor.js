@@ -81,6 +81,8 @@ export class StoneSoupEditor {
         editor.canvas.height = height * ratio;
         editor.canvas.style.width = width + "px";
         editor.canvas.style.height = height + "px";
+        editor.canvas.style.bgwidth = width + "px";
+        editor.canvas.style.bgheight = height + "px";
         editor.canvas.getContext("2d").scale(ratio, ratio);
         return editor.canvas;
     }

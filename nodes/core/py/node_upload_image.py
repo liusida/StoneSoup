@@ -35,6 +35,6 @@ async def post_upload(id: str = Form(...), file: UploadFile = File(...)):
         f.write(await file.read())
     
     image_tensor = process_image(file_location)
-    GlobalCache.set(id, "image", image_tensor)
+    GlobalCache.set(id, "uploaded_image", image_tensor)
 
-    return {"id": id, "filename": new_filename, "pointer": "image"}
+    return {"id": id, "name": "uploaded_image", "pointer": "object", "filename": new_filename}
