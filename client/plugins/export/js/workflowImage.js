@@ -29,6 +29,8 @@ class WorkflowImage {
     }
 
     saveState() {
+        editor.updateEditorHiPPICanvas();
+        
         this.state = {
             scale: graphcanvas.ds.scale,
             width: graphcanvas.canvas.width,
@@ -36,6 +38,7 @@ class WorkflowImage {
             bgwidth: graphcanvas.bgcanvas.width,
             bgheight: graphcanvas.bgcanvas.height,
             offset: graphcanvas.ds.offset,
+            show_info: graphcanvas.show_info,
         };
     }
 
@@ -46,6 +49,8 @@ class WorkflowImage {
         graphcanvas.bgcanvas.width = this.state.bgwidth;
         graphcanvas.bgcanvas.height = this.state.bgheight;
         graphcanvas.ds.offset = this.state.offset;
+        graphcanvas.show_info = this.state.show_info;
+        editor.updateEditorHiPPICanvas();
     }
 
     updateView(bounds) {
@@ -55,6 +60,7 @@ class WorkflowImage {
         graphcanvas.bgcanvas.width = bounds[2] - bounds[0];
         graphcanvas.bgcanvas.height = bounds[3] - bounds[1];
         graphcanvas.ds.offset = [-bounds[0], -bounds[1]];
+        graphcanvas.show_info = false;
     }
 
     async export(includeWorkflow) {
