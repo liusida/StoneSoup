@@ -18,8 +18,10 @@ export class NodePreviewImage {
     }
 
     async onAction() {
+        this.running = true;
         if (this.complete) {
             this.triggerSlot(0); // Trigger the next node
+            this.running = false;
             return;
         }
         const image_pointer = this.getInputData(1);

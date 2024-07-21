@@ -38,6 +38,7 @@ function registerServersideNodes(nodeData) {
         async onAction(action, param, options, action_slot) {
             console.log("onAction");
             console.log(LiteGraph.registered_node_init_func);
+            this.running = true;
             // Data to be sent to the server
             const data = {
                 node_uuid: this.id,
@@ -65,6 +66,7 @@ function registerServersideNodes(nodeData) {
                     this.setOutputData(Number(slot)+1, data); // +1 because the first slot is for the next EVENT
                 });
                 this.triggerSlot(0); // Trigger the next node
+                this.running = false;
             } else if (result.error) {
                 console.log(result.error);
                 ui.showMessageBox(`<div id="error-dialog"><div><h1>${result.error}</h1></div><div><pre>${result.traceback}</pre></div></div>`, {position: [100,100]});
