@@ -82,7 +82,9 @@ function registerServersideNodes(nodeData) {
                 data.input[item.name] = this.getInputData(slotIndex);
             });
             this.widgets?.forEach((item) => {
-                data.input[item.name] = item.value;
+                if (!item.hidden) {
+                    data.input[item.name] = item.value;
+                }
             });
             var response = await fetch(`${server_url}/api`, {
                 method: "POST", // Setting the method to POST

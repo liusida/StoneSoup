@@ -203,6 +203,7 @@ async def api(data: APIInput):
                 GlobalCache.set(data.node_uuid, full_classname, obj)
                 output[i] = {"id": data.node_uuid, "name": full_classname, "pointer": "object"} # TODO: save the object to cache and give a reference pointer to the client
         logger.info( json.dumps({"result": output}) )
+        logger.warn( "Think about free up VRAM here.")
         return {"result": output}
     except Exception as e:
         error_message = str(e)

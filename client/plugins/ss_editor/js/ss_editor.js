@@ -119,7 +119,12 @@ export class StoneSoupEditor {
         const line_height = 13;
         if (this.graph) {
             ctx.fillText(
-                "Canvas: " + this.canvas.width + " x " + this.canvas.height,
+                "Canvas: " + (this.ds.visible_area[2]).toFixed(0) + " x " + (this.ds.visible_area[3]).toFixed(0),
+                5,
+                line_height * 1
+            );
+            ctx.fillText(
+                "HTML: " + this.canvas.width + " x " + this.canvas.height,
                 5,
                 line_height * 2
             );

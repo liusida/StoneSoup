@@ -29,10 +29,13 @@ class NodeForLoop extends NodeTemplate{
 
     step() {
         if (this.index<=this.getWidgetValueByName("Last Index")) {
-            this.index++;
+            this.getOutputNodes(3)?.map(node => node.onChange?.());
             this.setOutputData(3, this.index);
+            this.index++;
+            this.running = false;
             this.triggerSlot(1);
         } else {
+            this.running = false;
             this.triggerSlot(2);
         }
     }
