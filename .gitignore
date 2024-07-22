@@ -5,6 +5,7 @@ output
 models
 tmp
 tmp.*
+*.disabled
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
