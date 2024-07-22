@@ -150,7 +150,8 @@ def load_all_nodes():
         import folder_paths
         folder_paths.folder_names_and_paths["checkpoints"][0].append(os.path.abspath('./server/models/'))
         ckpts = folder_paths.get_filename_list("checkpoints")
-
+        import comfy.model_management
+        GlobalCache.free_comfyui = comfy.model_management.unload_all_models
         load_nodes_from_file(comfy_nodes_file_path, white_list=["CheckpointLoaderSimple", "CLIPTextEncode", "KSampler", "EmptyLatentImage", "VAEDecode"])
 
 @app.get("/nodes")
@@ -202,7 +203,7 @@ async def api(data: APIInput):
                 full_classname = f"{obj.__class__.__module__}.{obj.__class__.__qualname__}"
                 GlobalCache.set(data.node_uuid, full_classname, obj)
                 output[i] = {"id": data.node_uuid, "name": full_classname, "pointer": "object"} # TODO: save the object to cache and give a reference pointer to the client
-        logger.info( json.dumps({"result": output}) )
+        logger.info( json.dumps(GlobalCache.list()) )
         logger.warn( "Think about free up VRAM here.")
         return {"result": output}
     except Exception as e:
