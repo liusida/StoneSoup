@@ -112,3 +112,11 @@ Now if ComfyUI is present in your environment, StoneSoup can also utilize the no
 And SubGraphs can make things more organized:
 
 ![StoneSoup_for_loop_with_subgraph_with_ComfyUI](images/workflow_for_loop_w_subgraph.png)
+
+### ChatGPT Analysis
+
+This project contains less than 5k lines of code. I provided the code to ChatGPT for analysis and an overview.
+
+[ChatGPT Project Overview](dump_for_ai/chatgpt_analysis.md)
+
+While it doesn't capture everything, the analysis is useful for developers looking to quickly familiarize themselves with the project.
