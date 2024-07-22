@@ -105,6 +105,10 @@ P.S. Javascript files should be in `js` subfolder, Python files should be in `py
 
 ## Here is the current progress
 
-Now if ComfyUI is present in your environment, StoneSoup can also utilize the nodes from ComfyUI.
+Now if ComfyUI is present in your environment, StoneSoup can also utilize the nodes from ComfyUI:
 
 ![StoneSoup_import_ComfyUI](images/workflow_comfyui_default.png)
+
+And SubGraphs can make things more organized:
+
+![StoneSoup_for_loop_with_subgraph_with_ComfyUI](images/workflow_for_loop_w_subgraph.png)
