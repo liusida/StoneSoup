@@ -1,0 +1,4032 @@
+File: .\tmp.py
+```
+import os
+
+def list_source_files(root_dir, exclude_dirs=None):
+    if exclude_dirs is None:
+        exclude_dirs = set()
+    else:
+        exclude_dirs = set(exclude_dirs)
+
+    for dirpath, dirnames, filenames in os.walk(root_dir):
+        # Remove excluded directories
+        dirnames[:] = [d for d in dirnames if d not in exclude_dirs]
+
+        for filename in filenames:
+            if filename.endswith(('.py', '.js')):
+                file_path = os.path.join(dirpath, filename)
+                print(f"File: {file_path}")
+                
+                # Print file contents
+                with open(file_path, 'r') as file:
+                    print("```")
+                    print(file.read())
+                    print("```")
+                    print("-" * 50)  # Separator between files
+
+# Example usage
+root_directory = '.'  # Current directory
+excluded_directories = ['lib', 'venv', '__pycache__', '.vscode']
+list_source_files(root_directory, excluded_directories)
+```
+--------------------------------------------------
+File: .\client\main.py
+```
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from glob import glob
+import os
+import mimetypes
+mimetypes.add_type("application/javascript", ".js")
+
+app = FastAPI()
+
+server_url = None # don't need a custom server_url
+
+# Function to generate script and link tags for multiple directories
+def generate_tags(base_dirs):
+    script_tags = []
+    link_tags = []
+    for physical_dir in base_dirs:
+        base_dir = physical_dir.split('/')[-1]
+        js_files = glob(f"{physical_dir}/*/js/*.js", recursive=True)
+        css_files = glob(f"{physical_dir}/*/css/*.css", recursive=True)
+        print(js_files)
+        for js_file in js_files:
+            script_path = os.path.relpath(js_file, physical_dir)
+            script_tags.append(f'<script type="module" src="/{base_dir}/{script_path}"></script>')
+        
+        for css_file in css_files:
+            css_path = os.path.relpath(css_file, physical_dir)
+            link_tags.append(f'<link rel="stylesheet" href="/{base_dir}/{css_path}">')
+    
+    return script_tags, link_tags
+
+@app.get("/", response_class=HTMLResponse)
+async def serve_index():
+    with open("client/web/index.html") as f:
+        content = f.read()
+    
+    script_tags, link_tags = generate_tags(["client/system", "client/plugins", "nodes"])
+    script_tags_str = "\n".join(script_tags)
+    link_tags_str = "\n".join(link_tags)
+    
+    # Inject the tags before closing </body> and </head> tags
+    content = content.replace("</head>", f"{link_tags_str}\n</head>")
+    if server_url:
+        server_url_script = f"<script>window.server_url='{server_url}';</script>"
+    else:
+        # Use the hostname of the browser with port 6165
+        server_url_script = "<script>window.server_url=window.location.protocol + '//' + window.location.hostname + ':6165';</script>"
+
+    content = content.replace("</body>", f"{server_url_script}\n{script_tags_str}\n</body>")
+
+    return HTMLResponse(content=content)
+
+# Mount directories
+app.mount("/nodes", StaticFiles(directory="nodes"), name="nodes")
+
+app.mount("/system", StaticFiles(directory="client/system"), name="system")
+app.mount("/plugins", StaticFiles(directory="client/plugins"), name="plugins")
+app.mount("/assets", StaticFiles(directory="client/assets"), name="assets")
+
+app.mount("/litegraph", StaticFiles(directory="client/lib/litegraph.js-daniel/src/"), name="litegraph")
+app.mount("/litegraph_css", StaticFiles(directory="client/lib/litegraph.js-daniel/css/"), name="litegraph_css")
+# app.mount("/litegraph", StaticFiles(directory="client/lib/litegraph.tsx/src/core/"), name="litegraph")
+# app.mount("/litegraph_css", StaticFiles(directory="client/lib/litegraph.tsx/css/"), name="litegraph_css")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=6166, reload=True)
+
+```
+--------------------------------------------------
+File: .\client\plugins\export\js\workflowImage.js
+```
+// adopted from https://github.com/pythongosssss/ComfyUI-Custom-Scripts/
+
+let fileInput;
+
+class WorkflowImage {
+    static accept = "";
+
+    getBounds() {
+        // Calculate the min max bounds for the nodes on the graph
+        const bounds = graph._nodes.reduce(
+            (p, n) => {
+                if (n.pos[0] < p[0]) p[0] = n.pos[0];
+                if (n.pos[1] < p[1]) p[1] = n.pos[1];
+                const bounds = n.getBounding();
+                const r = n.pos[0] + bounds[2];
+                const b = n.pos[1] + bounds[3];
+                if (r > p[2]) p[2] = r;
+                if (b > p[3]) p[3] = b;
+                return p;
+            },
+            [99999, 99999, -99999, -99999]
+        );
+
+        bounds[0] -= 100;
+        bounds[1] -= 100;
+        bounds[2] += 100;
+        bounds[3] += 100;
+        return bounds;
+    }
+
+    saveState() {
+        editor.updateEditorHiPPICanvas();
+        
+        this.state = {
+            scale: graphcanvas.ds.scale,
+            width: graphcanvas.canvas.width,
+            height: graphcanvas.canvas.height,
+            bgwidth: graphcanvas.bgcanvas.width,
+            bgheight: graphcanvas.bgcanvas.height,
+            offset: graphcanvas.ds.offset,
+            show_info: graphcanvas.show_info,
+        };
+    }
+
+    restoreState() {
+        graphcanvas.ds.scale = this.state.scale;
+        graphcanvas.canvas.width = this.state.width;
+        graphcanvas.canvas.height = this.state.height;
+        graphcanvas.bgcanvas.width = this.state.bgwidth;
+        graphcanvas.bgcanvas.height = this.state.bgheight;
+        graphcanvas.ds.offset = this.state.offset;
+        graphcanvas.show_info = this.state.show_info;
+        editor.updateEditorHiPPICanvas();
+    }
+
+    updateView(bounds) {
+        graphcanvas.ds.scale = 1;
+        graphcanvas.canvas.width = bounds[2] - bounds[0];
+        graphcanvas.canvas.height = bounds[3] - bounds[1];
+        graphcanvas.bgcanvas.width = bounds[2] - bounds[0];
+        graphcanvas.bgcanvas.height = bounds[3] - bounds[1];
+        graphcanvas.ds.offset = [-bounds[0], -bounds[1]];
+        graphcanvas.show_info = false;
+    }
+
+    async export(includeWorkflow) {
+        // Save the current state of the canvas
+        this.saveState();
+        // Update to render the whole workflow
+        this.updateView(this.getBounds());
+
+        // Flag that we are saving and render the canvas
+        graphcanvas.draw(true, true);
+
+        // Generate a blob of the image containing the workflow
+        const blob = await this.getBlob(
+            includeWorkflow ? JSON.stringify(graph.serialize()) : undefined
+        );
+
+        // Restore initial state and redraw
+        this.restoreState();
+        graphcanvas.draw(true, true);
+
+        // Download the generated image
+        this.download(blob);
+    }
+
+    download(blob) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        Object.assign(a, {
+            href: url,
+            download: "workflow." + this.extension,
+            style: "display: none",
+        });
+        document.body.append(a);
+        a.click();
+        setTimeout(function () {
+            a.remove();
+            window.URL.revokeObjectURL(url);
+        }, 0);
+    }
+
+    // This function getPngMetadata() is learned from https://github.com/comfyanonymous/ComfyUI/blob/master/web/scripts/pnginfo.js
+    static getPngMetadata(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+
+            reader.onload = (event) => {
+                try {
+                    const pngData = new Uint8Array(event.target.result);
+                    const dataView = new DataView(pngData.buffer);
+
+                    // Check that the PNG signature is present
+                    if (dataView.getUint32(0) !== 0x89504e47) {
+                        throw new Error("Not a valid PNG file");
+                    }
+
+                    let offset = 8;
+                    const metadata = {};
+
+                    // Loop through the chunks in the PNG file
+                    while (offset < pngData.length) {
+                        const length = dataView.getUint32(offset);
+                        const type = String.fromCharCode(
+                            ...pngData.slice(offset + 4, offset + 8)
+                        );
+
+                        if (["tEXt", "comf", "iTXt"].includes(type)) {
+                            const keywordEnd = pngData.indexOf(0, offset + 8);
+                            const keyword = String.fromCharCode(
+                                ...pngData.slice(offset + 8, keywordEnd)
+                            );
+                            const contentArraySegment = pngData.slice(
+                                keywordEnd + 1,
+                                offset + 8 + length
+                            );
+                            const content = new TextDecoder("utf-8").decode(
+                                contentArraySegment
+                            );
+                            metadata[keyword] = content;
+                        }
+
+                        offset += 12 + length;
+                    }
+
+                    resolve(metadata);
+                } catch (error) {
+                    console.error(error);
+                    reject(error);
+                }
+            };
+
+            reader.onerror = (error) => {
+                console.error("File reading error:", error);
+                reject(error);
+            };
+
+            reader.readAsArrayBuffer(file);
+        });
+    }
+
+    static import() {
+        if (!fileInput) {
+            fileInput = document.createElement("input");
+            Object.assign(fileInput, {
+                type: "file",
+                style: "display: none",
+                onchange: () => {
+                    // TODO: read graph data from fileInput.files[0]
+                    // use `graph.configure(graph_data);` to load the graph data to editor
+                    WorkflowImage.getPngMetadata(fileInput.files[0]).then(
+                        (metadata) => {
+                            var graph_data = JSON.parse(metadata.workflow);
+                            graph.configure(graph_data);
+                        }
+                    );
+                },
+            });
+            document.body.append(fileInput);
+        }
+        fileInput.accept = WorkflowImage.accept;
+        fileInput.click();
+    }
+}
+
+class PngWorkflowImage extends WorkflowImage {
+    static accept = ".png,image/png";
+    extension = "png";
+
+    n2b(n) {
+        return new Uint8Array([
+            (n >> 24) & 0xff,
+            (n >> 16) & 0xff,
+            (n >> 8) & 0xff,
+            n & 0xff,
+        ]);
+    }
+
+    joinArrayBuffer(...bufs) {
+        const result = new Uint8Array(
+            bufs.reduce((totalSize, buf) => totalSize + buf.byteLength, 0)
+        );
+        bufs.reduce((offset, buf) => {
+            result.set(buf, offset);
+            return offset + buf.byteLength;
+        }, 0);
+        return result;
+    }
+
+    crc32(data) {
+        const crcTable =
+            PngWorkflowImage.crcTable ||
+            (PngWorkflowImage.crcTable = (() => {
+                let c;
+                const crcTable = [];
+                for (let n = 0; n < 256; n++) {
+                    c = n;
+                    for (let k = 0; k < 8; k++) {
+                        c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+                    }
+                    crcTable[n] = c;
+                }
+                return crcTable;
+            })());
+        let crc = 0 ^ -1;
+        for (let i = 0; i < data.byteLength; i++) {
+            crc = (crc >>> 8) ^ crcTable[(crc ^ data[i]) & 0xff];
+        }
+        return (crc ^ -1) >>> 0;
+    }
+
+    async getBlob(workflow) {
+        return new Promise((r) => {
+            graphcanvas.canvas.toBlob(async (blob) => {
+                if (workflow) {
+                    // If we have a workflow embed it in the PNG
+                    const buffer = await blob.arrayBuffer();
+                    const typedArr = new Uint8Array(buffer);
+                    const view = new DataView(buffer);
+
+                    const data = new TextEncoder().encode(
+                        `tEXtworkflow\0${workflow}`
+                    );
+                    const chunk = this.joinArrayBuffer(
+                        this.n2b(data.byteLength - 4),
+                        data,
+                        this.n2b(this.crc32(data))
+                    );
+
+                    const sz = view.getUint32(8) + 20;
+                    const result = this.joinArrayBuffer(
+                        typedArr.subarray(0, sz),
+                        chunk,
+                        typedArr.subarray(sz)
+                    );
+
+                    blob = new Blob([result], { type: "image/png" });
+                }
+
+                r(blob);
+            });
+        });
+    }
+}
+
+class DataReader {
+    /**	@type {DataView} */
+    view;
+    /** @type {boolean | undefined} */
+    littleEndian;
+    offset = 0;
+
+    /**
+     * @param {DataView} view
+     */
+    constructor(view) {
+        this.view = view;
+    }
+
+    /**
+     * Reads N bytes and increments the offset
+     * @param {1 | 2 | 4 | 8} size
+     */
+    read(size, signed = false, littleEndian = undefined) {
+        const v = this.peek(size, signed, littleEndian);
+        this.offset += size;
+        return v;
+    }
+
+    /**
+     * Reads N bytes
+     * @param {1 | 2 | 4 | 8} size
+     */
+    peek(size, signed = false, littleEndian = undefined) {
+        this.view.getBigInt64;
+        let m = "";
+        if (size === 8) m += "Big";
+        m += signed ? "Int" : "Uint";
+        m += size * 8;
+        m = "get" + m;
+        if (!this.view[m]) {
+            throw new Error("Method not found: " + m);
+        }
+
+        return this.view[m](
+            this.offset,
+            littleEndian == null ? this.littleEndian : littleEndian
+        );
+    }
+
+    /**
+     * Seeks to the specified position or by the number of bytes specified relative to the current offset
+     * @param {number} pos
+     * @param {boolean} relative
+     */
+    seek(pos, relative = true) {
+        if (relative) {
+            this.offset += pos;
+        } else {
+            this.offset = pos;
+        }
+    }
+}
+
+class WorkflowImagePlugin {
+    static name = "pysssss.WorkflowImage";
+    init() {
+        // https://codepen.io/peterhry/pen/nbMaYg
+        function wrapText(context, text, x, y, maxWidth, lineHeight) {
+            var words = text.split(" "),
+                line = "",
+                i,
+                test,
+                metrics;
+
+            for (i = 0; i < words.length; i++) {
+                test = words[i];
+                metrics = context.measureText(test);
+                while (metrics.width > maxWidth) {
+                    // Determine how much of the word will fit
+                    test = test.substring(0, test.length - 1);
+                    metrics = context.measureText(test);
+                }
+                if (words[i] != test) {
+                    words.splice(i + 1, 0, words[i].substr(test.length));
+                    words[i] = test;
+                }
+
+                test = line + words[i] + " ";
+                metrics = context.measureText(test);
+
+                if (metrics.width > maxWidth && i > 0) {
+                    context.fillText(line, x, y);
+                    line = words[i] + " ";
+                    y += lineHeight;
+                } else {
+                    line = test;
+                }
+            }
+
+            context.fillText(line, x, y);
+        }
+    }
+
+    setup() {
+        const formats = [PngWorkflowImage];
+        for (const f of formats) {
+            f.init?.call();
+            WorkflowImage.accept +=
+                (WorkflowImage.accept ? "," : "") + f.accept;
+        }
+
+        // Add canvas menu options
+        const orig = LGraphCanvas.prototype.getCanvasMenuOptions;
+        LGraphCanvas.prototype.getCanvasMenuOptions = function () {
+            const options = orig.apply(this, arguments);
+
+            options.push(null, {
+                content: "Workflow Image",
+                submenu: {
+                    options: [
+                        {
+                            content: "Import",
+                            callback: () => {
+                                WorkflowImage.import();
+                            },
+                        },
+                        {
+                            content: "Export",
+                            submenu: {
+                                options: formats.flatMap((f) => [
+                                    {
+                                        content: f.name
+                                            .replace("WorkflowImage", "")
+                                            .toLocaleLowerCase(),
+                                        callback: () => {
+                                            new f().export(true);
+                                        },
+                                    },
+                                    {
+                                        content:
+                                            f.name
+                                                .replace("WorkflowImage", "")
+                                                .toLocaleLowerCase() +
+                                            " (no embedded workflow)",
+                                        callback: () => {
+                                            new f().export();
+                                        },
+                                    },
+                                ]),
+                            },
+                        },
+                    ],
+                },
+            });
+            return options;
+        };
+    }
+}
+
+var workflowImage = new WorkflowImagePlugin();
+workflowImage.init();
+workflowImage.setup();
+
+```
+--------------------------------------------------
+File: .\client\plugins\ss_editor\js\running_node_color.js
+```
+function applyRunningNodeColor() {
+    const origDrawNodeShape = LGraphCanvas.prototype.drawNodeShape;
+
+    LGraphCanvas.prototype.drawNodeShape = function (
+        node,
+        ctx,
+        size,
+        fgcolor,
+        bgcolor,
+        selected,
+        mouse_over
+    ) {
+        const res = origDrawNodeShape.apply(this, arguments);
+        if (node.running) {
+            var color = "#0f0";
+
+            // Set things up just like origDrawNodeShape
+            var shape =
+                node._shape || node.constructor.shape || LiteGraph.ROUND_SHAPE;
+            var title_mode = node.constructor.title_mode;
+            var title_height = LiteGraph.NODE_TITLE_HEIGHT;
+            var render_title = true;
+            if (
+                title_mode == LiteGraph.TRANSPARENT_TITLE ||
+                title_mode == LiteGraph.NO_TITLE
+            ) {
+                render_title = false;
+            } else if (title_mode == LiteGraph.AUTOHIDE_TITLE && mouse_over) {
+                render_title = true;
+            }
+            var area = new Float32Array(4);
+            area[0] = 0; // x
+            area[1] = render_title ? -title_height : 0; // y
+            area[2] = size[0] + 1; // w
+            area[3] = render_title ? size[1] + title_height : size[1]; // h
+
+            // Copied from LGraphCanvas.js:
+            if (node.onBounding) {
+                node.onBounding(area);
+            }
+
+            if (title_mode == LiteGraph.TRANSPARENT_TITLE) {
+                area[1] -= title_height;
+                area[3] += title_height;
+            }
+            ctx.lineWidth = 1;
+            ctx.globalAlpha = 0.8;
+            ctx.beginPath();
+            if (shape == LiteGraph.BOX_SHAPE) {
+                ctx.rect(
+                    -6 + area[0],
+                    -6 + area[1],
+                    12 + area[2],
+                    12 + area[3]
+                );
+            } else if (
+                shape == LiteGraph.ROUND_SHAPE ||
+                (shape == LiteGraph.CARD_SHAPE && node.flags.collapsed)
+            ) {
+                ctx.roundRect(
+                    -6 + area[0],
+                    -6 + area[1],
+                    12 + area[2],
+                    12 + area[3],
+                    [this.round_radius * 2]
+                );
+            } else if (shape == LiteGraph.CARD_SHAPE) {
+                ctx.roundRect(
+                    -6 + area[0],
+                    -6 + area[1],
+                    12 + area[2],
+                    12 + area[3],
+                    [this.round_radius * 2, 2, this.round_radius * 2, 2]
+                );
+            } else if (shape == LiteGraph.CIRCLE_SHAPE) {
+                ctx.arc(
+                    size[0] * 0.5,
+                    size[1] * 0.5,
+                    size[0] * 0.5 + 6,
+                    0,
+                    Math.PI * 2
+                );
+            }
+            ctx.strokeStyle = color;
+            ctx.stroke();
+            ctx.strokeStyle = fgcolor;
+            ctx.globalAlpha = 1;
+        }
+    };
+}
+
+applyRunningNodeColor();
+
+```
+--------------------------------------------------
+File: .\client\plugins\ss_editor\js\ss_editor.js
+```
+import { initServersideNodes } from "/system/default/js/serverside_nodes.js";
+
+export class StoneSoupEditor {
+    constructor(container_id) {
+        const root = (this.root = document.createElement("div"));
+        root.className = "litegraph litegraph-editor";
+        root.innerHTML = `
+        <div class="content">
+            <div class="editor-area">
+                <canvas class="graphcanvas" width="1000" height="500" tabindex="10"></canvas>
+            </div>
+        </div>
+        `;
+
+        this.content = root.querySelector(".content");
+
+        const canvas = (this.canvas = root.querySelector(".graphcanvas"));
+        const graph = (this.graph = new LGraph());
+        const graphcanvas = (this.graphcanvas = new LGraphCanvas(
+            canvas,
+            graph
+        ));
+
+        var that = this;
+
+        graphcanvas.show_info = true;
+        graphcanvas.renderInfo = this.renderInfo;
+
+        graphcanvas.render_canvas_border = false;
+
+        // Show connection arrows
+        graphcanvas.render_connection_arrows = true;
+
+        graphcanvas.background_image =
+            "/plugins/ss_editor/assets/ss_bg_dark.png";
+        graphcanvas._pattern = null; // hack: need to reset pattern after set background image
+
+        graph.onAfterExecute = () => {
+            graphcanvas.draw(true);
+        };
+
+        graphcanvas.onDropItem = this.onDropItem.bind(this);
+
+        // append to DOM
+        const parent = document.getElementById(container_id);
+        if (parent) {
+            parent?.appendChild(root);
+        } else {
+            throw new Error("Editor has no parentElement to bind to");
+        }
+
+        // == Auto Save ==
+        window.onbeforeunload = function () {
+            var data = JSON.stringify(graph.serialize());
+            localStorage.setItem("litegraphg demo backup", data);
+        };
+
+        // == Fill the window ==
+        graphcanvas.autoresize = false;
+        graphcanvas.resize();
+        this.updateEditorHiPPICanvas();
+        window.addEventListener("resize", function () {
+            that.graphcanvas.resize();
+            that.updateEditorHiPPICanvas();
+        });
+    }
+
+    restoreGraph() {
+        var data = localStorage.getItem("litegraphg demo backup");
+        if (data) {
+            var graph_data = JSON.parse(data);
+            graph.configure(graph_data);
+        }
+    }
+
+    updateEditorHiPPICanvas() {
+        // updating the High-Performance Pixel Image (HiPPI) canvas
+        const ratio = window.devicePixelRatio;
+        // this is the ratio of the screen (Windows Settings) 125% = 1.25
+        if (ratio == 1) {
+            return;
+        }
+        const rect = this.canvas.parentNode.getBoundingClientRect();
+        const { width, height } = rect;
+        this.canvas.width = width * ratio;
+        this.canvas.height = height * ratio;
+        this.canvas.style.width = width + "px";
+        this.canvas.style.height = height + "px";
+        this.canvas.getContext("2d").scale(ratio, ratio);
+        // return editor.canvas;
+    }
+
+    onDropItem(e) {
+        var that = this;
+        for (var i = 0; i < e.dataTransfer.files.length; ++i) {
+            var file = e.dataTransfer.files[i];
+            var ext = LGraphCanvas.getFileExtension(file.name);
+            var reader = new FileReader();
+            if (ext == "json") {
+                reader.onload = (event) => {
+                    var data = JSON.parse(event.target.result);
+                    that.graph.configure(data);
+                };
+                reader.readAsText(file);
+            }
+        }
+    }
+
+    renderInfo(ctx, x, y) {
+        x = x || 10;
+        y = y || this.canvas.height / window.devicePixelRatio  - 80;
+
+        ctx.save();
+        ctx.translate(x, y);
+
+        ctx.font = "10px Arial";
+        ctx.fillStyle = "#888";
+        ctx.textAlign = "left";
+        const line_height = 13;
+        if (this.graph) {
+            ctx.fillText(
+                "Canvas: " + (this.ds.visible_area[2]).toFixed(0) + " x " + (this.ds.visible_area[3]).toFixed(0),
+                5,
+                line_height * 1
+            );
+            ctx.fillText(
+                "HTML: " + this.canvas.width + " x " + this.canvas.height,
+                5,
+                line_height * 2
+            );
+            ctx.fillText(
+                "Time: " + this.graph.globaltime.toFixed(2) + "s",
+                5,
+                line_height * 3
+            );
+            ctx.fillText(
+                "Node: " +
+                    this.graph._nodes.length +
+                    " [" +
+                    this.visible_nodes.length +
+                    "]",
+                5,
+                line_height * 4
+            );
+            ctx.fillText("FPS:" + this.fps.toFixed(2), 5, line_height * 5);
+        } else {
+            ctx.fillText("No graph selected", 5, line_height * 1);
+        }
+        ctx.restore();
+    }
+}
+
+var editor = new StoneSoupEditor("main");
+window.graphcanvas = editor.graphcanvas;
+window.graph = editor.graph;
+window.editor = editor;
+
+initServersideNodes().then(() => {
+    editor.restoreGraph();
+});
+
+```
+--------------------------------------------------
+File: .\client\system\default\js\0_for_compatibility_to_daniel.js
+```
+import { LiteGraph } from "/litegraph/litegraph.js";
+import { LGraph } from "/litegraph/lgraph.js";
+import { LGraphNode } from "/litegraph/lgraphnode.js";
+import { LGraphCanvas } from "/litegraph/lgraphcanvas.js";
+
+window.LiteGraph = LiteGraph;
+window.LGraph = LGraph;
+window.LGraphNode = LGraphNode;
+window.LGraphCanvas = LGraphCanvas;
+```
+--------------------------------------------------
+File: .\client\system\default\js\litegraph_settings.js
+```
+
+// LiteGraph.debug_level = 4; // -1 to disable all, now shows up to index of console['error','warning','info','log','debug']
+// LiteGraph.logging_set_level(-1); // -1 to disable all, 4 is all on
+// Use UUIDs, and the UUIDs will be synchronized with the server-side nodes
+LiteGraph.use_uuids = true;
+// Don't use a mixture of modes. It's too complicated. Always use ALWAYS.
+LiteGraph.do_add_triggers_slots = false;
+
+
+
+//
+LiteGraph.catch_exceptions = true;
+LiteGraph.throw_errors = true;
+LiteGraph.allow_scripts = false; //if set to true some nodes like Formula would be allowed to evaluate code that comes from unsafe sources (like node configuration); which could lead to exploits
+
+LiteGraph.searchbox_extras = {}; //used to add extra features to the search box
+LiteGraph.auto_sort_node_types = true; // [true!] If set to true; will automatically sort node types / categories in the context menus
+LiteGraph.node_box_coloured_when_on = true; // [true!] this make the nodes box (top left circle) coloured when triggered (execute/action); visual feedback
+LiteGraph.node_box_coloured_by_mode = true; // [true!] nodebox based on node mode; visual feedback
+LiteGraph.dialog_close_on_mouse_leave = true; // [false on mobile] better true if not touch device;
+LiteGraph.dialog_close_on_mouse_leave_delay = 500;
+LiteGraph.shift_click_do_break_link_from = false; // [false!] prefer false if results too easy to break links
+LiteGraph.click_do_break_link_to = false; // [false!]prefer false; way too easy to break links
+LiteGraph.search_hide_on_mouse_leave = true; // [false on mobile] better true if not touch device;
+LiteGraph.search_filter_enabled = true; // [true!] enable filtering slots type in the search widget; !requires auto_load_slot_types or manual set registered_slot_[in/out]_types and slot_types_[in/out]
+LiteGraph.search_show_all_on_open = true; // [true!] opens the results list when opening the search widget
+LiteGraph.show_node_tooltip = true; // [true!] show a tooltip with node property "tooltip" over the selected node
+LiteGraph.show_node_tooltip_use_descr_property = true; // enabled tooltip from desc when property tooltip not set
+LiteGraph.auto_load_slot_types = true; // [if want false; use true; run; get vars values to be statically set; than disable] nodes types and nodeclass association with node types need to be calculated; if dont want this; calculate once and set registered_slot_[in/out]_types and slot_types_[in/out]
+/*// set these values if not using auto_load_slot_types
+LiteGraph.registered_slot_in_types = {}; // slot types for nodeclass
+LiteGraph.registered_slot_out_types = {}; // slot types for nodeclass
+LiteGraph.slot_types_in = []; // slot types IN
+LiteGraph.slot_types_out = []; // slot types OUT*/
+
+LiteGraph.alt_drag_do_clone_nodes = true; // [true!] very handy; ALT click to clone and drag the new node
+LiteGraph.allow_multi_output_for_events = false; // [false!] being events; it is strongly reccomended to use them sequentially; one by one
+LiteGraph.middle_click_slot_add_default_node = true;  //[true!] allows to create and connect a ndoe clicking with the third button (wheel)
+LiteGraph.release_link_on_empty_shows_menu = true; //[true!] dragging a link to empty space will open a menu, add from list, search or defaults
+LiteGraph.ctrl_shift_v_paste_connect_unselected_outputs = true; //[true!] allows ctrl + shift + v to paste nodes with the outputs of the unselected nodes connected with the inputs of the newly pasted nodes
+LiteGraph.backspace_delete = false;  // [false!] delete key is enough, don't mess with text edit and custom
+
+LiteGraph.actionHistory_enabled = false; // [true!] cntrlZ, cntrlY
+LiteGraph.actionHistoryMaxSave = 40;
+
+LiteGraph.showCanvasOptions = true;// enable canvas options panel, customize in LiteGrpah.availableCanvasOptions
+
+/* -- EVENTS PROCESSING METHODS -- */
+
+/* METHOD 1 ANCESTORS : EXECUTING ACTIONS BEFORE THE NEXT FRAME, AFFECTING INPUT NODES WILL BE REPROCESSED */
+LiteGraph.refreshAncestorsOnTriggers = false; //[true!]
+LiteGraph.refreshAncestorsOnActions = false; //[true!]
+LiteGraph.ensureUniqueExecutionAndActionCall = false; //[true!]
+
+/* METHOD 2 DEFERRED ACTIONS */
+LiteGraph.use_deferred_actions = true; //
+```
+--------------------------------------------------
+File: .\client\system\default\js\node.js
+```
+export class NodeTemplate {
+    constructor() {
+        this.complete = false;
+        this.running = false;
+        this.serialize_widgets = true;
+        this.hidden_widget_names = [];
+    }
+
+    onChange() {
+        this.complete = false;
+        if (this.subgraph) {
+            for (const index in this.subgraph._nodes) {
+                // reset all nodes in subgraph. TODO: might be better to check the link and reset the dedicated nodes.
+                this.subgraph._nodes[index].complete = false;
+            }
+        }
+        for (let slot = 0; slot < this.outputs.length; slot++) {
+            var next_nodes = this.getOutputNodes(slot);
+            if (next_nodes && next_nodes.length > 0) {
+                next_nodes.forEach((next_node) => {
+                    if (next_node && next_node.complete) {
+                        next_node.complete = false;
+                        next_node.onChange(next_node);
+                    }
+                });
+            }
+        }
+    }
+
+    onWidgetChanged() {
+        this.onChange();
+    }
+
+    async onAction(action, param, options, action_slot) {
+        this.running = true;
+    }
+
+    triggerNextNode() {
+        this.complete = true;
+        this.running = false;
+        this.triggerSlot(0); // Trigger the next node
+    }
+
+    getExtraMenuOptions(_, options) {
+        for (const w of this.widgets) {
+            if (w.type == "number") {
+                options.push({
+                    content: `Convert ${w.name} to input`,
+                    callback: () => this.convertToInput(w),
+                });
+            }
+        }
+    }
+
+    hideWidget(widget_name) {
+        const index = this.widgets.findIndex(item => item.name === widget_name);
+        if (index !== -1) {
+            var widget = this.widgets[index];
+            widget.computeSize = () => [0, -4];
+            widget.serializeValue = () => undefined;
+            widget.hidden = true;
+        }
+    }
+
+    convertToInput(widget) {
+        // hide widget
+        this.hidden_widget_names.push(widget.name);
+        this.hideWidget(widget.name);
+        // addInput
+        this.addInput(widget.name, widget.type);
+    }
+
+    onSerialize(o) {
+        o.hidden_widget_names = this.hidden_widget_names;
+    }
+    onConfigure(info) {
+        this.hidden_widget_names = info.hidden_widget_names;
+        // when restore the workflow, hide the widget again
+        if (this.hidden_widget_names) {
+            for (const widget_name of this.hidden_widget_names) {
+                this.hideWidget(widget_name);
+            }
+        }
+    }
+}
+
+```
+--------------------------------------------------
+File: .\client\system\default\js\serverside_nodes.js
+```
+import { NodeTemplate } from "./node.js";
+
+// == Register Nodes ==
+function registerServersideNodes(nodeData) {
+    console.log(nodeData);
+    class nodeClass extends NodeTemplate {
+        constructor(title) {
+            super();
+            this.title = title;
+            this.serverside_class = nodeData.serverside_class;
+            this.shape = "card";
+
+            //All server-side nodes contain this event trigger
+            this.addInput("onTrigger", LiteGraph.EVENT);
+            this.addOutput("onTrigger", LiteGraph.EVENT);
+
+            if (nodeData.inputs) {
+                nodeData.inputs.forEach((input) => {
+                    this.addInput(input.name, input.type);
+                });
+            }
+
+            if (nodeData.widgets) {
+                nodeData.widgets.forEach((widget) => {
+                    if (
+                        widget.type == "combo" &&
+                        widget.value.constructor == Array
+                    ) {
+                        this.addWidget(
+                            widget.type,
+                            widget.name,
+                            widget.value[0],
+                            null,
+                            { values: widget.value }
+                        );
+                    } else {
+                        console.log(widget.type);
+                        var default_value;
+                        if (widget.value) {
+                            default_value = widget.value;
+                        } else if (
+                            widget.options &&
+                            widget.options["default"]
+                        ) {
+                            default_value = widget.options.default;
+                        } else {
+                            if (widget.type == "STRING") default_value = "";
+                            else if (widget.type == "number") default_value = 0;
+                            else console.warn("Not implemented.");
+                        }
+                        this.addWidget(
+                            widget.type,
+                            widget.name,
+                            default_value,
+                            null,
+                        );
+                    }
+                });
+            }
+
+            if (nodeData.outputs) {
+                nodeData.outputs.forEach((output) => {
+                    this.addOutput(output.name, output.type);
+                });
+            }
+        }
+
+        async onAction(action, param, options, action_slot) {
+            await super.onAction(action, param, options, action_slot);
+            if (this.complete) {
+                this.triggerNextNode();
+                return;
+            }
+            // Data to be sent to the server
+            const data = {
+                node_uuid: this.id,
+                serverside_class: nodeData.serverside_class,
+                input: {},
+            };
+            this.inputs?.forEach((item, slotIndex) => {
+                if (item.type == LiteGraph.EVENT) return;
+                data.input[item.name] = this.getInputData(slotIndex);
+            });
+            this.widgets?.forEach((item) => {
+                if (!item.hidden) {
+                    data.input[item.name] = item.value;
+                }
+            });
+            var response = await fetch(`${server_url}/api`, {
+                method: "POST", // Setting the method to POST
+                headers: {
+                    "Content-Type": "application/json", // Specifying the content type
+                },
+                body: JSON.stringify(data), // Converting the JavaScript object to a JSON string
+            });
+            var result = await response.json();
+            if (result.result) {
+                Object.entries(result.result).forEach(([slot, data]) => {
+                    this.setOutputData(Number(slot) + 1, data); // +1 because the first slot is for the next EVENT
+                });
+                this.triggerNextNode();
+            } else if (result.error) {
+                console.log(result.error);
+                ui.showMessageBox(
+                    `<div id="error-dialog"><div><h1>${result.error}</h1></div><div><pre>${result.traceback}</pre></div></div>`,
+                    { position: [100, 100] }
+                );
+            }
+        }
+    }
+    nodeClass.title = nodeData.title || "Unnamed";
+    nodeClass.desc = nodeData.desc || "No description";
+
+    LiteGraph.registerNodeType(nodeData.type, nodeClass);
+    nodeClass.onRegistered?.();
+}
+
+export async function initServersideNodes() {
+    const response = await fetch(`${server_url}/nodes`);
+    if (!response.ok) {
+        throw new Error("Network response was not ok " + response.statusText);
+    }
+    const data = await response.json(); // Parse the JSON from the response
+    if (data.constructor == Array) {
+        data.forEach((nodeData) => {
+            registerServersideNodes(nodeData); // Process the data here
+        });
+    }
+}
+
+LiteGraph.registered_node_init_func = {};
+LiteGraph.registerInitFunction = (type, func) => {
+    LiteGraph.registered_node_init_func[type] = func;
+};
+LiteGraph.onNodeTypeRegistered = (type, base_class) => {
+    if (LiteGraph.registered_node_init_func[type]) {
+        // replace the base_class with the extended class
+        LiteGraph.registered_node_types[type] =
+            LiteGraph.registered_node_init_func[type](base_class);
+    }
+};
+
+```
+--------------------------------------------------
+File: .\client\system\default\js\ui.js
+```
+class ui {
+    static showMessageBox(html) {
+        graphcanvas.createDialog(html);
+    }
+}
+
+window.ui = ui;
+```
+--------------------------------------------------
+File: .\nodes\core\js\node_for_loop.js
+```
+import { NodeTemplate } from "/system/default/js/node.js";
+
+class NodeForLoop extends NodeTemplate{
+    constructor() {
+        super();
+        this.title = "ForLoop";
+        this.addInput("onTrigger", LiteGraph.EVENT);
+        this.addOutput("Next", "ForLoopID");
+        this.addOutput("Loop Body", LiteGraph.EVENT);
+        this.addOutput("Completed", LiteGraph.EVENT);
+        this.addOutput("Index", "number", "0");
+        this.addWidget("number", "First Index", 1).options.step = 10;
+        this.addWidget("number", "Last Index", 3).options.step = 10;
+        this.addWidget("number", "Step", 1).options.step = 10;
+        this.index = 0;
+    }
+
+    getWidgetValueByName(widgetName) {
+        if (!this.widgets) {
+            return null;
+        }
+        for (let widget of this.widgets) {
+            if (widget.name === widgetName) {
+                return widget.value;
+            }
+        }
+        return null;
+    }
+
+    step() {
+        if (this.index<=this.getWidgetValueByName("Last Index")) {
+            this.getOutputNodes(3)?.map(node => node.onChange?.());
+            this.setOutputData(3, this.index);
+            this.index++;
+            this.running = false;
+            this.triggerSlot(1);
+        } else {
+            this.running = false;
+            this.triggerSlot(2);
+        }
+    }
+    
+    async onAction(action, param, options, action_slot) {
+        await super.onAction(action, param, options, action_slot);
+        this.index = this.getWidgetValueByName("First Index");
+        // find the Next node and add a callback
+        var that=this;
+        var next = this.getOutputNodes(0);
+        if (next==null || next.length<=0) {
+            ui.showMessageBox("Please connect to the ForLoopNext Node");
+            return;
+        }
+        next.forEach(node => {
+            node.stepFunction = () => {
+                that.step();
+            }
+        });
+        that.step();
+    }
+}
+class NodeForLoopNext {
+    constructor() {
+        this.title = "Next";
+        this.addInput("ForLoop", "ForLoopID");
+        this.addInput("Next", LiteGraph.EVENT);
+        this.stepFunction = null;
+    }
+    async onAction(action, param, options, action_slot) {
+        if (this.stepFunction) {
+            this.stepFunction.call();
+        } else {
+            ui.showMessageBox("Please connect to the ForLoop Node");
+        }
+    }
+}
+LiteGraph.registerNodeType("core/ForLoop", NodeForLoop);
+LiteGraph.registerNodeType("core/ForLoopNext", NodeForLoopNext);
+
+```
+--------------------------------------------------
+File: .\nodes\core\js\node_preview.js
+```
+import { NodeTemplate } from "/system/default/js/node.js";
+
+export class NodePreviewImage extends NodeTemplate {
+    static title = "Preview Image";
+    static desc = "Preview an image";
+    static min_height = 200;
+    static updateFrequency = 5;
+
+    constructor() {
+        super();
+        var that = this;
+        this.image = null; // Store the selected image
+        this.image_url = null; // Store the URL of the uploaded image
+        this.shape = "card";
+        this.addInput("onTrigger", LiteGraph.EVENT);
+        this.addOutput("onTrigger", LiteGraph.EVENT);
+        this.addInput("image", "image");
+
+        this.widget_height = 60;
+        this.chunks = [];
+    }
+
+    async onAction() {
+        await super.onAction();
+        if (this.complete) {
+            this.triggerNextNode();
+            return;
+        }
+        var image_pointer = this.getInputData(1);
+        if (!image_pointer) {
+            ui.showMessageBox("no images to preview.");
+            return;
+        }
+        if (typeof image_pointer === 'object') {
+            image_pointer = JSON.stringify(image_pointer);
+        }
+        if (!this.img) {
+            this.img = new Image();
+        }
+
+        const response = await fetch(`${server_url}/preview?image_pointer=${encodeURIComponent(image_pointer)}`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+            }
+        });
+
+
+        const data = await response.json();
+        this.imageWidth = parseInt(data.headers["X-Image-Width"]);
+        this.imageHeight = parseInt(data.headers["X-Image-Height"]);
+        const imageUrl = new URL(data.url, server_url).href;
+
+        // Fetch image as a stream
+        const imageResponse = await fetch(imageUrl);
+        const reader = imageResponse.body.getReader();
+        this.chunks = [];
+        const updateInterval = 1000; // Time interval in milliseconds
+
+        const updateImage = () => {
+            if (this.chunks.length > 0) {
+                const blob = new Blob(this.chunks, { type: "image/png" });
+                const tempImg = new Image();
+                tempImg.onload = () => {
+                    this.img.src = tempImg.src;
+                    this.setDirtyCanvas(true);
+                };
+                tempImg.src = URL.createObjectURL(blob);
+            }
+        };
+        const intervalId = setInterval(updateImage.bind(this), updateInterval);
+
+        const process = async ({ done, value }) => {
+            if (done) {
+                clearInterval(intervalId); // Clear the interval when done
+                updateImage.call(this); // Final update
+                this.complete = true;
+                this.triggerNextNode();
+                return;
+            }
+            this.chunks.push(value);
+            reader.read().then(process);
+        };
+
+        reader.read().then(process);
+    }
+
+    onDrawForeground(ctx) {
+        if (this.img && this.img.src) {
+            const maxWidth = this.size[0];
+            const maxHeight = this.size[1] - this.widget_height;
+            const ratio = Math.min(
+                maxWidth / this.imageWidth,
+                maxHeight / this.imageHeight
+            );
+            var width = this.imageWidth * ratio;
+            var height = this.imageHeight * ratio;
+
+            const x = (maxWidth - width) / 2;
+            const y = this.widget_height + (maxHeight - height) / 2;
+
+            ctx.drawImage(this.img, x, y, width, height);
+            // this.setDirtyCanvas(true);
+        }
+    }
+}
+
+LiteGraph.registerNodeType("core/Preview", NodePreviewImage);
+
+```
+--------------------------------------------------
+File: .\nodes\core\js\node_start.js
+```
+// == Node: Start ==
+export class NodeStart {
+
+    static title = "Start";
+    static desc = "Start the workflow";
+
+    constructor() {
+        var that=this;
+        this.addWidget("button","Start", null, function(v){
+            graph.start();
+            that.processCache();
+            that.triggerSlot(0);
+        }, {} );
+        this.addOutput("onTrigger", LiteGraph.EVENT);
+    }
+
+    processCache() {
+        graph._nodes.forEach(node => {
+            console.log(node);
+        });
+    }
+}
+LiteGraph.registerNodeType("core/Start", NodeStart);
+
+```
+--------------------------------------------------
+File: .\nodes\core\js\node_stop.js
+```
+// == Node: Stop ==
+export class NodeStop {
+
+    static title = "Stop";
+    static desc = "Stop the workflow";
+
+    constructor() {
+        this.addInput("onTrigger", LiteGraph.EVENT);
+    }
+    async onAction() {
+        // offload all models to cpu
+        const response = await fetch(`${server_url}/free`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+            }
+        });
+        graph._nodes.map(node => node.complete = false);
+
+        // TODO: do we need to clean cpu memory as well? but what if we refer to that variable later?
+
+        // stop the graph, let the computer have a rest
+        graph.stop();
+    }
+}
+LiteGraph.registerNodeType("core/Stop", NodeStop);
+
+```
+--------------------------------------------------
+File: .\nodes\core\js\node_upload_image.js
+```
+// == Node: Upload Image ==
+export class NodeUploadImage {
+
+    static title = "Upload Image";
+    static desc = "Upload an image from local file system";
+    static min_height = 200;
+
+    constructor() {
+        var that = this;
+        this.image = null; // Store the selected image
+        this.image_url = null; // Store the URL of the uploaded image
+        this.shape = "card";
+
+        this.addWidget("button", "Upload Image", null, function() {
+            that.uploadImage();
+        }, {});
+        this.addOutput("image", "image");
+
+        this.widget_height = 60;
+    }
+
+    uploadImage() {
+        var input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        var that=this;
+        input.onchange = (event) => {
+            that.onChange(that);
+            var file = event.target.files[0];
+            if (file) {
+                var reader = new FileReader();
+                reader.onload = (e) => {
+                    this.image = e.target.result;
+                    this.trigger("Image", this.image);
+                    this.setDirtyCanvas(true);
+                    this.postImage(file);
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+        input.click();
+    }
+
+    postImage(file) {
+        const formData = new FormData();
+        formData.append('id', this.id);
+        formData.append('file', file);
+
+        fetch(`${server_url}/upload`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Success:', data);
+            this.filename = data.filename;
+            this.img = new Image();
+            this.img.src = `${server_url}/input/${data.filename}`;
+            this.img.crossOrigin = "anonymous";
+            this.img.onload = () => {
+                this.setDirtyCanvas(true);
+            }
+            console.log(`msg:  ${data.id}__${data.pointer}`);
+            this.setOutputData("image", data);
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
+    }
+
+    onDrawForeground(ctx) {
+        if (this.img) {
+            const maxWidth = this.size[0];
+            const maxHeight = this.size[1] - this.widget_height;
+            const ratio = Math.min(maxWidth / this.img.width, maxHeight / this.img.height);
+            const width = this.img.width * ratio;
+            const height = this.img.height * ratio;
+
+            const x = (maxWidth - width) / 2;
+            const y = this.widget_height + (maxHeight - height) / 2;
+
+            ctx.drawImage(this.img, x, y, width, height);
+            this.setDirtyCanvas(true);
+        }
+    }
+}
+
+LiteGraph.registerNodeType("core/UploadImage", NodeUploadImage);
+
+```
+--------------------------------------------------
+File: .\nodes\core\py\node_accumulation.py
+```
+from server.py.node_template import NodeTemplate
+
+class NodeAccumulation (NodeTemplate):
+    title = "Server-side Accumulation"
+    desc = "Start from 0, add 1 each time, return the sum."
+
+    def __init__(self):
+        self.value = 0
+    
+    @classmethod
+    def INPUTS(s):
+        return [
+        ]
+    
+    @classmethod
+    def WIDGETS(s):
+        return [
+            # type, name, value, callback, options
+            {"type": "number", "name": "inc", "value": 1}
+        ]
+
+    @classmethod
+    def OUTPUTS(s):
+        return [
+            {"name": "output", "type": "number"}
+        ]
+    
+    def main(self, inc):
+        current_value = self.value
+        self.value += inc
+        print("main function called.")
+        return (current_value,)
+
+```
+--------------------------------------------------
+File: .\nodes\core\py\node_addition.py
+```
+from server.py.node_template import NodeTemplate
+
+class NodeAddition (NodeTemplate):
+    title = "Server-side Addition"
+    desc = "Add the input `base` to widget `value`, return the sum."
+
+    def __init__(self):
+        pass
+    
+    @classmethod
+    def INPUTS(s):
+        return [
+            # name, type, extra_info
+            {"name": "base", "type": "number"}
+        ]
+    
+    @classmethod
+    def WIDGETS(s):
+        return [
+            # type, name, value, callback, options
+            {"type": "number", "name": "value", "value": 1}
+        ]
+
+    @classmethod
+    def OUTPUTS(s):
+        return [
+            {"name": "output", "type": "INT"}
+        ]
+    
+    def main(self, base, value):
+        output = base + value
+        print("main function called.")
+        return (output,)
+
+```
+--------------------------------------------------
+File: .\nodes\core\py\node_preview.py
+```
+import os
+import uuid
+import time
+import json
+from io import BytesIO
+from PIL import Image
+import numpy as np
+import torch
+from fastapi import FastAPI, Query, File, Form, UploadFile
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+from server.py.global_settings import GlobalSettings
+from server.py.cache import GlobalCache
+
+app = FastAPI()
+
+def save_image_tensor(image_tensor, file_path):
+    # Assuming image_tensor is a torch tensor with shape [1, H, W, C]
+    image_array = image_tensor.squeeze(0).cpu().numpy()
+    image_pil = Image.fromarray(np.uint8(image_array * 255))
+    image_pil.save(file_path) # this line is super slow for a large image, why? is it because the original file before storing as tensor is JPG??
+
+def get_image_bytes(image_tensor):
+    # Assuming image_tensor is a torch tensor with shape [1, H, W, C]
+    image_array = image_tensor.squeeze(0).cpu().numpy()
+    image_pil = Image.fromarray(np.uint8(image_array * 255))
+    image_bytes = BytesIO()
+    image_pil.save(image_bytes, format='PNG')
+    image_bytes.seek(0)
+    return image_bytes
+
+@app.get("/preview")
+async def get_preview(image_pointer: str = Query(..., description="The image pointer in the format 'id__name'")):
+    image_pointer = json.loads(image_pointer)
+    start_time = time.time()  # Record the start time
+    id, name = image_pointer["id"], image_pointer["name"]
+    image_tensor = GlobalCache.get(id, name) # [1, H, W, C]
+    # save a tmp image 
+    if image_tensor is None:
+        return {"error": "Image not found in cache"}
+
+    _, height, width, channel = image_tensor.shape
+
+    headers = {
+        "X-Image-Width": str(width),
+        "X-Image-Height": str(height)
+    }
+
+    filename = f"{uuid.uuid4()}.png"
+    save_image_tensor(image_tensor, f"{GlobalSettings.temp_dir_physical}/{filename}")
+    
+    end_time = time.time()  # Record the end time
+    duration = end_time - start_time  # Calculate the duration
+    print(f"get_preview execution time: {duration:.2f} seconds")  # Log the duration
+
+    return {"url": f"{GlobalSettings.temp_dir}/{filename}", "headers": headers}
+
+```
+--------------------------------------------------
+File: .\nodes\core\py\node_stop.py
+```
+from fastapi import FastAPI
+from server.py.cache import GlobalCache
+
+app = FastAPI()
+
+@app.get("/free")
+async def get_free():
+    GlobalCache.free_comfyui()
+    return {}
+```
+--------------------------------------------------
+File: .\nodes\core\py\node_upload_image.py
+```
+import os
+import time
+import random
+import string
+from PIL import Image
+import numpy as np
+import torch
+from fastapi import FastAPI, File, Form, UploadFile
+from server.py.global_settings import GlobalSettings
+from server.py.cache import GlobalCache
+
+app = FastAPI()
+
+def generate_random_filename(extension: str) -> str:
+    timestamp = time.strftime("%Y%m%d%H%M%S")
+    random_string = ''.join(random.choices(string.ascii_letters + string.digits, k=4))
+    return f"{timestamp}_{random_string}.{extension}"
+
+def process_image(file_path: str) -> torch.Tensor:
+    with Image.open(file_path) as img:
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        image_array = np.array(img).astype(np.float32) / 255.0
+        image_tensor = torch.from_numpy(image_array)[None, ...].to(GlobalSettings.device)  # Shape: [1, H, W, C]
+        return image_tensor
+
+@app.post("/upload")
+async def post_upload(id: str = Form(...), file: UploadFile = File(...)):
+    # Save the uploaded file
+    file_extension = file.filename.split('.')[-1]
+    new_filename = generate_random_filename(file_extension)
+    file_location = os.path.join(GlobalSettings.input_dir_physical, new_filename)
+
+    with open(file_location, "wb") as f:
+        f.write(await file.read())
+    
+    image_tensor = process_image(file_location)
+    GlobalCache.set(id, "uploaded_image", image_tensor)
+
+    return {"id": id, "name": "uploaded_image", "pointer": "object", "filename": new_filename}
+
+```
+--------------------------------------------------
+File: .\nodes\example_custom_nodes\js\node_js_with_py.js
+```
+// == Node: Example_JS_Py ==
+export class NodeExample_JS_Py {
+
+    static title = "Example_JS_Py";
+    static desc = "Example_JS_Py";
+
+    constructor() {
+        var that=this;
+        this.addInput("onTrigger", LiteGraph.EVENT);
+        this.addWidget("string", "name", "Tom", this.onWidgetChanged);
+        this.addOutput("onTrigger", LiteGraph.EVENT);
+    }
+    async onAction() {
+        var name = this.widgets[0].value;
+        const response = await fetch(`${server_url}/example?name=${encodeURIComponent(name)}`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+            }
+        });
+
+
+        const data = await response.json();
+        ui.showMessageBox(`<h1>Message from the server</h1><p>${data.string}</p>`);
+        this.triggerSlot(0);
+    }
+}
+LiteGraph.registerNodeType("example_custom_nodes/Example_JS_Py", NodeExample_JS_Py);
+
+```
+--------------------------------------------------
+File: .\nodes\example_custom_nodes\js\node_pure_js.js
+```
+// == Node: Example_Pure_JS ==
+export class NodeExample_Pure_JS {
+
+    static title = "Example_Pure_JS";
+    static desc = "Example_Pure_JS";
+
+    constructor() {
+        var that=this;
+        this.addInput("onTrigger", LiteGraph.EVENT);
+        this.addWidget("button","Manual Trigger", null, function(v){
+            that.triggerSlot(0);
+        }, {} );
+        this.addOutput("onTrigger", LiteGraph.EVENT);
+    }
+
+    onAction() { //automatically trigger
+        this.triggerSlot(0);
+    }
+}
+LiteGraph.registerNodeType("example_custom_nodes/Example_Pure_JS", NodeExample_Pure_JS);
+
+```
+--------------------------------------------------
+File: .\nodes\example_custom_nodes\py\node_js_with_py.py
+```
+from fastapi import FastAPI, Query, File, Form, UploadFile
+
+app = FastAPI()
+
+@app.get("/example")
+async def get_preview(name: str = Query(..., description="The image pointer in the format 'id__name'")):
+    return {"string": f"hi {name}. hello from the server"}
+
+```
+--------------------------------------------------
+File: .\nodes\example_custom_nodes\py\node_pure_py.py
+```
+from server.py.node_template import NodeTemplate
+
+class NodeExamplePurePy (NodeTemplate):
+    title = "NodeExamplePurePy"
+    desc = ""
+
+    def __init__(self):
+        pass
+    
+    @classmethod
+    def INPUTS(s):
+        return [
+        ]
+    
+    @classmethod
+    def WIDGETS(s):
+        return [
+            # type, name, value, callback, options
+            {"type": "number", "name": "number", "value": 1}
+        ]
+
+    @classmethod
+    def OUTPUTS(s):
+        return [
+            {"name": "output", "type": "number"}
+        ]
+    
+    def main(self, number):
+        print("log to the terminal")
+        return (number,)
+
+```
+--------------------------------------------------
+File: .\nodes\litegraph\js\base.js
+```
+import { NodeTemplate } from "/system/default/js/node.js";
+
+// Constant
+class Time {
+
+    static title = "Time";
+    static desc = "Time";
+
+    constructor() {
+        this.addOutput("in ms", "number");
+        this.addOutput("in sec", "number");
+    }
+
+    onExecute() {
+        this.setOutputData(0, this.graph.globaltime * 1000);
+        this.setOutputData(1, this.graph.globaltime);
+    }
+}
+LiteGraph.registerNodeType("basic/time", Time);
+
+// Subgraph: a node that contains a graph
+class Subgraph extends NodeTemplate{
+
+    static title = "Subgraph";
+    static desc = "Graph inside a node";
+
+    constructor() {
+        super();
+        this.size = [140, 80];
+        this.properties = { enabled: true };
+        this.enabled = true;
+
+        // create inner graph
+        this.subgraph = new LiteGraph.LGraph();
+        this.subgraph._subgraph_node = this;
+        this.subgraph._is_subgraph = true;
+
+        this.subgraph.onTrigger = this.onSubgraphTrigger.bind(this);
+
+        // nodes input node added inside
+        this.subgraph.onInputAdded = this.onSubgraphNewInput.bind(this);
+        this.subgraph.onInputRenamed = this.onSubgraphRenamedInput.bind(this);
+        this.subgraph.onInputTypeChanged =
+            this.onSubgraphTypeChangeInput.bind(this);
+        this.subgraph.onInputRemoved = this.onSubgraphRemovedInput.bind(this);
+
+        this.subgraph.onOutputAdded = this.onSubgraphNewOutput.bind(this);
+        this.subgraph.onOutputRenamed = this.onSubgraphRenamedOutput.bind(this);
+        this.subgraph.onOutputTypeChanged =
+            this.onSubgraphTypeChangeOutput.bind(this);
+        this.subgraph.onOutputRemoved = this.onSubgraphRemovedOutput.bind(this);
+    }
+
+    onGetInputs() {
+        return [["enabled", "boolean"]];
+    }
+
+    /*
+    Subgraph.prototype.onDrawTitle = function(ctx) {
+        if (this.flags.collapsed) {
+            return;
+        }
+
+        ctx.fillStyle = "#555";
+        var w = LiteGraph.NODE_TITLE_HEIGHT;
+        var x = this.size[0] - w;
+        ctx.fillRect(x, -w, w, w);
+        ctx.fillStyle = "#333";
+        ctx.beginPath();
+        ctx.moveTo(x + w * 0.2, -w * 0.6);
+        ctx.lineTo(x + w * 0.8, -w * 0.6);
+        ctx.lineTo(x + w * 0.5, -w * 0.3);
+        ctx.fill();
+    };
+    */
+
+    onDblClick(e, pos, graphcanvas) {
+        var that = this;
+        setTimeout(function () {
+            graphcanvas.openSubgraph(that.subgraph);
+        }, 10);
+    }
+
+    /*
+    Subgraph.prototype.onMouseDown = function(e, pos, graphcanvas) {
+        if (
+            !this.flags.collapsed &&
+            pos[0] > this.size[0] - LiteGraph.NODE_TITLE_HEIGHT &&
+            pos[1] < 0
+        ) {
+            var that = this;
+            setTimeout(function() {
+                graphcanvas.openSubgraph(that.subgraph);
+            }, 10);
+        }
+    };
+    */
+
+    async onAction(action, param) {
+        await super.onAction(action, param);
+        this.subgraph.onAction(action, param);
+    }
+
+    onExecute() {
+        this.enabled = this.getInputOrProperty("enabled");
+        if (!this.enabled) {
+            return;
+        }
+
+        // send inputs to subgraph global inputs
+        if (this.inputs) {
+            for (let i = 0; i < this.inputs.length; i++) {
+                let input = this.inputs[i];
+                let value = this.getInputData(i);
+                this.subgraph.setInputData(input.name, value);
+            }
+        }
+
+        // execute
+        this.subgraph.runStep();
+
+        // send subgraph global outputs to outputs
+        if (this.outputs) {
+            for (let i = 0; i < this.outputs.length; i++) {
+                let output = this.outputs[i];
+                let value = this.subgraph.getOutputData(output.name);
+                this.setOutputData(i, value);
+            }
+        }
+    }
+
+    sendEventToAllNodes(eventname, param, mode) {
+        if (this.enabled) {
+            this.subgraph.sendEventToAllNodes(eventname, param, mode);
+        }
+    }
+
+    onDrawBackground(ctx, graphcanvas, canvas, pos) {
+        if (this.flags.collapsed) return;
+        var y = this.size[1] - LiteGraph.NODE_TITLE_HEIGHT + 0.5;
+        // button
+        var over = LiteGraph.isInsideRectangle(
+            pos[0],
+            pos[1],
+            this.pos[0],
+            this.pos[1] + y,
+            this.size[0],
+            LiteGraph.NODE_TITLE_HEIGHT,
+        );
+        let overleft = LiteGraph.isInsideRectangle(
+            pos[0],
+            pos[1],
+            this.pos[0],
+            this.pos[1] + y,
+            this.size[0] / 2,
+            LiteGraph.NODE_TITLE_HEIGHT,
+        );
+        ctx.fillStyle = over ? "#555" : "#222";
+        ctx.beginPath();
+        if (this._shape == LiteGraph.BOX_SHAPE) {
+            if (overleft) {
+                ctx.rect(0, y, this.size[0] / 2 + 1, LiteGraph.NODE_TITLE_HEIGHT);
+            } else {
+                ctx.rect(
+                    this.size[0] / 2,
+                    y,
+                    this.size[0] / 2 + 1,
+                    LiteGraph.NODE_TITLE_HEIGHT,
+                );
+            }
+        } else {
+            if (overleft) {
+                ctx.roundRect(
+                    0,
+                    y,
+                    this.size[0] / 2 + 1,
+                    LiteGraph.NODE_TITLE_HEIGHT,
+                    [0, 0, 8, 8],
+                );
+            } else {
+                ctx.roundRect(
+                    this.size[0] / 2,
+                    y,
+                    this.size[0] / 2 + 1,
+                    LiteGraph.NODE_TITLE_HEIGHT,
+                    [0, 0, 8, 8],
+                );
+            }
+        }
+        if (over) {
+            ctx.fill();
+        } else {
+            ctx.fillRect(0, y, this.size[0] + 1, LiteGraph.NODE_TITLE_HEIGHT);
+        }
+        // button
+        ctx.textAlign = "center";
+        ctx.font = "24px Arial";
+        ctx.fillStyle = over ? "#DDD" : "#999";
+        ctx.fillText("+", this.size[0] * 0.25, y + 24);
+        ctx.fillText("+", this.size[0] * 0.75, y + 24);
+    }
+
+    // Subgraph.prototype.onMouseDown = function(e, localpos, graphcanvas)
+    // {
+    // 	var y = this.size[1] - LiteGraph.NODE_TITLE_HEIGHT + 0.5;
+    // 	if(localpos[1] > y)
+    // 	{
+    // 		graphcanvas.showSubgraphPropertiesDialog(this);
+    // 	}
+    // }
+    onMouseDown(e, localpos, graphcanvas) {
+        var y = this.size[1] - LiteGraph.NODE_TITLE_HEIGHT + 0.5;
+        console.log?.(0);
+        if (localpos[1] > y) {
+            if (localpos[0] < this.size[0] / 2) {
+                console.log?.(1);
+                graphcanvas.showSubgraphPropertiesDialog(this);
+            } else {
+                console.log?.(2);
+                graphcanvas.showSubgraphPropertiesDialogRight(this);
+            }
+        }
+    }
+
+    computeSize() {
+        var num_inputs = this.inputs ? this.inputs.length : 0;
+        var num_outputs = this.outputs ? this.outputs.length : 0;
+        return [
+            200,
+            Math.max(num_inputs, num_outputs) * LiteGraph.NODE_SLOT_HEIGHT +
+                LiteGraph.NODE_TITLE_HEIGHT,
+        ];
+    }
+
+    //* *** INPUTS ***********************************
+    onSubgraphTrigger(event) {
+        var slot = this.findOutputSlot(event);
+        if (slot != -1) {
+            this.triggerSlot(slot);
+        }
+    }
+
+    onSubgraphNewInput(name, type) {
+        var slot = this.findInputSlot(name);
+        if (slot == -1) {
+            // add input to the node
+            this.addInput(name, type);
+        }
+    }
+
+    onSubgraphRenamedInput(oldname, name) {
+        var slot = this.findInputSlot(oldname);
+        if (slot == -1) {
+            return;
+        }
+        var info = this.getInputInfo(slot);
+        info.name = name;
+    }
+
+    onSubgraphTypeChangeInput(name, type) {
+        var slot = this.findInputSlot(name);
+        if (slot == -1) {
+            return;
+        }
+        var info = this.getInputInfo(slot);
+        info.type = type;
+    }
+
+    onSubgraphRemovedInput(name) {
+        var slot = this.findInputSlot(name);
+        if (slot == -1) {
+            return;
+        }
+        this.removeInput(slot);
+    }
+
+    //* *** OUTPUTS ***********************************
+    onSubgraphNewOutput(name, type) {
+        var slot = this.findOutputSlot(name);
+        if (slot == -1) {
+            this.addOutput(name, type);
+        }
+    }
+
+    onSubgraphRenamedOutput(oldname, name) {
+        var slot = this.findOutputSlot(oldname);
+        if (slot == -1) {
+            return;
+        }
+        var info = this.getOutputInfo(slot);
+        info.name = name;
+    }
+
+    onSubgraphTypeChangeOutput(name, type) {
+        var slot = this.findOutputSlot(name);
+        if (slot == -1) {
+            return;
+        }
+        var info = this.getOutputInfo(slot);
+        info.type = type;
+    }
+
+    onSubgraphRemovedOutput(name) {
+        var slot = this.findOutputSlot(name);
+        if (slot == -1) {
+            return;
+        }
+        this.removeOutput(slot);
+    }
+
+    getExtraMenuOptions(graphcanvas) {
+        var that = this;
+        return [
+            {
+                content: "Open",
+                callback: function () {
+                    graphcanvas.openSubgraph(that.subgraph);
+                },
+            },
+        ];
+    }
+
+    onResize(size) {
+        size[1] += 20;
+    }
+
+    serialize() {
+        var data = LiteGraph.LGraphNode.prototype.serialize.call(this);
+        data.subgraph = this.subgraph.serialize();
+        return data;
+    }
+
+    // no need to define node.configure, the default method detects node.subgraph and passes the object to node.subgraph.configure()
+    reassignSubgraphUUIDs(graph) {
+        const idMap = { nodeIDs: {}, linkIDs: {} };
+
+        for (const node of graph.nodes) {
+            const oldID = node.id;
+            const newID = LiteGraph.uuidv4();
+            node.id = newID;
+
+            if (idMap.nodeIDs[oldID] || idMap.nodeIDs[newID]) {
+                throw new Error(`New/old node UUID wasn't unique in changed map! ${oldID} ${newID}`);
+            }
+
+            idMap.nodeIDs[oldID] = newID;
+            idMap.nodeIDs[newID] = oldID;
+        }
+
+        for (const link of graph.links) {
+            const oldID = link[0];
+            const newID = LiteGraph.uuidv4();
+            link[0] = newID;
+
+            if (idMap.linkIDs[oldID] || idMap.linkIDs[newID]) {
+                throw new Error(`New/old link UUID wasn't unique in changed map! ${oldID} ${newID}`);
+            }
+
+            idMap.linkIDs[oldID] = newID;
+            idMap.linkIDs[newID] = oldID;
+
+            const nodeFrom = link[1];
+            const nodeTo = link[3];
+
+            if (!idMap.nodeIDs[nodeFrom]) {
+                throw new Error(`Old node UUID not found in mapping! ${nodeFrom}`);
+            }
+
+            link[1] = idMap.nodeIDs[nodeFrom];
+
+            if (!idMap.nodeIDs[nodeTo]) {
+                throw new Error(`Old node UUID not found in mapping! ${nodeTo}`);
+            }
+
+            link[3] = idMap.nodeIDs[nodeTo];
+        }
+
+        // Reconnect links
+        for (const node of graph.nodes) {
+            if (node.inputs) {
+                for (const input of node.inputs) {
+                    if (input.link) {
+                        input.link = idMap.linkIDs[input.link];
+                    }
+                }
+            }
+            if (node.outputs) {
+                for (const output of node.outputs) {
+                    if (output.links) {
+                        output.links = output.links.map((l) => idMap.linkIDs[l]);
+                    }
+                }
+            }
+        }
+
+        // Recurse!
+        for (const node of graph.nodes) {
+            if (node.type === "graph/subgraph") {
+                const merge = reassignGraphUUIDs(node.subgraph);
+                idMap.nodeIDs.assign(merge.nodeIDs);
+                idMap.linkIDs.assign(merge.linkIDs);
+            }
+        }
+    }
+
+    clone() {
+        var node = LiteGraph.createNode(this.type);
+        var data = this.serialize();
+
+        if (LiteGraph.use_uuids) {
+            // LiteGraph.LGraph.serialize() seems to reuse objects in the original graph. But we
+            // need to change node IDs here, so clone it first.
+            const subgraph = LiteGraph.cloneObject(data.subgraph);
+
+            this.reassignSubgraphUUIDs(subgraph);
+
+            data.subgraph = subgraph;
+        }
+
+        delete data["id"];
+        delete data["inputs"];
+        delete data["outputs"];
+        node.configure(data);
+        return node;
+    }
+
+    buildFromNodes(nodes) {
+        // clear all?
+        // TODO
+
+        // nodes that connect data between parent graph and subgraph
+
+        // mark inner nodes
+        var ids = {};
+        // @BUG: these aren't currently used.  Examine and decide whether to excise.
+        //    var min_x = 0;
+        //    var max_x = 0;
+        for (let i = 0; i < nodes.length; ++i) {
+            ids[node.id] = nodes[i];
+            //      min_x = Math.min(node.pos[0], min_x);
+            //      max_x = Math.max(node.pos[0], min_x);
+        }
+
+        for (let i = 0; i < nodes.length; ++i) {
+            let node = nodes[i];
+            // check inputs
+            if (node.inputs)
+                for (let j = 0; j < node.inputs.length; ++j) {
+                    let input = node.inputs[j];
+                    if (!input || !input.link) continue;
+                    let link = node.graph.links[input.link];
+                    if (!link) continue;
+                    if (ids[link.origin_id]) continue;
+                    // this.addInput(input.name,link.type);
+                    this.subgraph.addInput(input.name, link.type);
+                    /*
+                    var input_node = LiteGraph.createNode("graph/input");
+                    this.subgraph.add( input_node );
+                    input_node.pos = [min_x - 200, last_input_y ];
+                    last_input_y += 100;
+                    */
+                }
+
+            // check outputs
+            if (node.outputs)
+                for (let j = 0; j < node.outputs.length; ++j) {
+                    let output = node.outputs[j];
+                    if (!output || !output.links || !output.links.length) continue;
+                    //    var is_external = false;
+                    for (let k = 0; k < output.links.length; ++k) {
+                        let link = node.graph.links[output.links[k]];
+                        if (!link) continue;
+                        if (ids[link.target_id]) continue;
+                        //        is_external = true;
+                        break;
+                    }
+                    // if (!is_external) continue;
+                    // this.addOutput(output.name,output.type);
+                    /*
+                    var output_node = LiteGraph.createNode("graph/output");
+                    this.subgraph.add( output_node );
+                    output_node.pos = [max_x + 50, last_output_y ];
+                    last_output_y += 100;
+                    */
+                }
+        }
+
+        // detect inputs and outputs
+        // split every connection in two data_connection nodes
+        // keep track of internal connections
+        // connect external connections
+
+        // clone nodes inside subgraph and try to reconnect them
+
+        // connect edge subgraph nodes to extarnal connections nodes
+    }
+
+    static title_color = "#334";
+}
+// @TODO: Excise this
+LiteGraph.Subgraph = Subgraph;
+LiteGraph.registerNodeType("graph/subgraph", Subgraph);
+
+
+class GraphInput {
+
+    static title = "Input";
+    static desc = "Input of the graph";
+
+    constructor() {
+        this.addOutput("", "number");
+
+        this.name_in_graph = "";
+        this.properties = {
+            name: "",
+            type: "number",
+            value: 0,
+        };
+
+        var that = this;
+
+        this.name_widget = this.addWidget(
+            "text",
+            "Name",
+            this.properties.name,
+            function (v) {
+                if (!v) {
+                    return;
+                }
+                that.setProperty("name", v);
+            },
+        );
+        this.type_widget = this.addWidget(
+            "text",
+            "Type",
+            this.properties.type,
+            function (v) {
+                that.setProperty("type", v);
+            },
+        );
+
+        this.value_widget = this.addWidget(
+            "number",
+            "Value",
+            this.properties.value,
+            function (v) {
+                that.setProperty("value", v);
+            },
+        );
+
+        this.widgets_up = true;
+        this.size = [180, 90];
+    }
+
+    onConfigure() {
+        this.updateType();
+    }
+
+    // ensures the type in the node output and the type in the associated graph input are the same
+    updateType() {
+        var type = this.properties.type;
+        this.type_widget.value = type;
+
+        // update output
+        if (this.outputs[0].type != type) {
+            if (!LiteGraph.isValidConnection(this.outputs[0].type, type))
+                this.disconnectOutput(0);
+            this.outputs[0].type = type;
+        }
+
+        // update widget
+        if (type == "number") {
+            this.value_widget.type = "number";
+            this.value_widget.value = 0;
+        } else if (type == "boolean") {
+            this.value_widget.type = "toggle";
+            this.value_widget.value = true;
+        } else if (type == "string") {
+            this.value_widget.type = "text";
+            this.value_widget.value = "";
+        } else {
+            this.value_widget.type = null;
+            this.value_widget.value = null;
+        }
+        this.properties.value = this.value_widget.value;
+
+        // update graph
+        if (this.graph && this.name_in_graph) {
+            this.graph.changeInputType(this.name_in_graph, type);
+        }
+    }
+
+    // this is executed AFTER the property has changed
+    onPropertyChanged(name, v) {
+        if (name == "name") {
+            if (v == "" || v == this.name_in_graph || v == "enabled") {
+                return false;
+            }
+            if (this.graph) {
+                if (this.name_in_graph) {
+                    // already added
+                    this.graph.renameInput(this.name_in_graph, v);
+                } else {
+                    this.graph.addInput(v, this.properties.type);
+                }
+            } // what if not?!
+            this.name_widget.value = v;
+            this.name_in_graph = v;
+        } else if (name == "type") {
+            this.updateType();
+        }
+    }
+
+    getTitle() {
+        if (this.flags.collapsed) {
+            return this.properties.name;
+        }
+        return this.title;
+    }
+
+    onAction(action, param) {
+        if (this.properties.type == LiteGraph.EVENT) {
+            this.triggerSlot(0, param);
+        }
+    }
+
+    onExecute() {
+        var name = this.properties.name;
+        // read from global input
+        var data = this.graph.inputs[name];
+        if (!data) {
+            this.setOutputData(0, this.properties.value);
+            return;
+        }
+
+        this.setOutputData(
+            0,
+            data.value !== undefined ? data.value : this.properties.value,
+        );
+    }
+
+    onRemoved() {
+        if (this.name_in_graph) {
+            this.graph.removeInput(this.name_in_graph);
+        }
+    }
+}
+// @TODO: Excise this
+LiteGraph.GraphInput = GraphInput;
+LiteGraph.registerNodeType("graph/input", GraphInput);
+
+
+// Output for a subgraph
+class GraphOutput {
+
+    static title = "Output";
+    static desc = "Output of the graph";
+
+    constructor() {
+        this.addInput("", "");
+
+        this.name_in_graph = "";
+        this.properties = { name: "", type: "" };
+
+        // Object.defineProperty(this.properties, "name", {
+        //     get: function() {
+        //         return that.name_in_graph;
+        //     },
+        //     set: function(v) {
+        //         if (v == "" || v == that.name_in_graph) {
+        //             return;
+        //         }
+        //         if (that.name_in_graph) {
+        //             //already added
+        //             that.graph.renameOutput(that.name_in_graph, v);
+        //         } else {
+        //             that.graph.addOutput(v, that.properties.type);
+        //         }
+        //         that.name_widget.value = v;
+        //         that.name_in_graph = v;
+        //     },
+        //     enumerable: true
+        // });
+
+        // Object.defineProperty(this.properties, "type", {
+        //     get: function() {
+        //         return that.inputs[0].type;
+        //     },
+        //     set: function(v) {
+        //         if (v == "action" || v == "event") {
+        //             v = LiteGraph.ACTION;
+        //         }
+        //         if (!LiteGraph.isValidConnection(that.inputs[0].type,v))
+        // 			that.disconnectInput(0);
+        //         that.inputs[0].type = v;
+        //         if (that.name_in_graph) {
+        //             //already added
+        //             that.graph.changeOutputType(
+        //                 that.name_in_graph,
+        //                 that.inputs[0].type
+        //             );
+        //         }
+        //         that.type_widget.value = v || "";
+        //     },
+        //     enumerable: true
+        // });
+
+        this.name_widget = this.addWidget(
+            "text",
+            "Name",
+            this.properties.name,
+            "name",
+        );
+        this.type_widget = this.addWidget(
+            "text",
+            "Type",
+            this.properties.type,
+            "type",
+        );
+        this.widgets_up = true;
+        this.size = [180, 60];
+    }
+
+    onPropertyChanged(name, v) {
+        if (name == "name") {
+            if (v == "" || v == this.name_in_graph || v == "enabled") {
+                return false;
+            }
+            if (this.graph) {
+                if (this.name_in_graph) {
+                    // already added
+                    this.graph.renameOutput(this.name_in_graph, v);
+                } else {
+                    this.graph.addOutput(v, this.properties.type);
+                }
+            } // what if not?!
+            this.name_widget.value = v;
+            this.name_in_graph = v;
+        } else if (name == "type") {
+            this.updateType();
+        }
+    }
+
+    updateType() {
+        var type = this.properties.type;
+        if (this.type_widget) this.type_widget.value = type;
+
+        // update output
+        if (this.inputs[0].type != type) {
+            if (type == "action" || type == "event") type = LiteGraph.EVENT;
+            if (!LiteGraph.isValidConnection(this.inputs[0].type, type))
+                this.disconnectInput(0);
+            this.inputs[0].type = type;
+        }
+
+        // update graph
+        if (this.graph && this.name_in_graph) {
+            this.graph.changeOutputType(this.name_in_graph, type);
+        }
+    }
+
+    onExecute() {
+        this._value = this.getInputData(0);
+        this.graph.setOutputData(this.properties.name, this._value);
+    }
+
+    onAction(action, param) {
+        if (this.properties.type == LiteGraph.ACTION) {
+            this.graph.trigger(this.properties.name, param);
+        }
+    }
+
+    onRemoved() {
+        if (this.name_in_graph) {
+            this.graph.removeOutput(this.name_in_graph);
+        }
+    }
+
+    getTitle() {
+        if (this.flags.collapsed) {
+            return this.properties.name;
+        }
+        return this.title;
+    }
+}
+LiteGraph.GraphOutput = GraphOutput;
+LiteGraph.registerNodeType("graph/output", GraphOutput);
+
+
+// Constant
+class ConstantNumber {
+
+    static title = "Const Number";
+    static desc = "Constant number";
+
+    constructor() {
+        this.addOutput("value", "number");
+        this.addProperty("value", 1.0);
+        this.widget = this.addWidget("number", "value", 1, "value");
+        this.widgets_up = true;
+        this.size = [180, 30];
+    }
+
+    onExecute() {
+        this.setOutputData(0, parseFloat(this.properties["value"]));
+    }
+
+    getTitle() {
+        if (this.flags.collapsed) {
+            return this.properties.value;
+        }
+        return this.title;
+    }
+
+    setValue(v) {
+        this.setProperty("value", v);
+    }
+
+    onDrawBackground() {
+        // show the current value
+        this.outputs[0].label = this.properties["value"].toFixed(3);
+    }
+}
+LiteGraph.registerNodeType("basic/const", ConstantNumber);
+
+class ConstantBoolean {
+
+    static title = "Const Boolean";
+    static desc = "Constant boolean";
+
+    constructor() {
+        this.addOutput("bool", "boolean");
+        this.addProperty("value", true);
+        this.widget = this.addWidget("toggle", "value", true, "value");
+        this.serialize_widgets = true;
+        this.widgets_up = true;
+        this.size = [140, 30];
+    }
+
+    onExecute() {
+        this.setOutputData(0, this.properties["value"]);
+    }
+
+    onGetInputs() {
+        return [["toggle", LiteGraph.ACTION]];
+    }
+
+    onAction() {
+        this.setValue(!this.properties.value);
+    }
+}
+ConstantBoolean.prototype.getTitle = ConstantNumber.prototype.getTitle;
+ConstantBoolean.prototype.setValue = ConstantNumber.prototype.setValue;
+LiteGraph.registerNodeType("basic/boolean", ConstantBoolean);
+
+
+class ConstantString {
+
+    static title = "Const String";
+    static desc = "Constant string";
+
+    constructor() {
+        this.addOutput("string", "string");
+        this.addProperty("value", "");
+        this.widget = this.addWidget("text", "value", "", "value"); // link to property value
+        this.widgets_up = true;
+        this.size = [180, 30];
+    }
+
+    onExecute() {
+        this.setOutputData(0, this.properties["value"]);
+    }
+
+    onDropFile(file) {
+        var that = this;
+        var reader = new FileReader();
+        reader.onload = function (e) {
+            that.setProperty("value", e.target.result);
+        };
+        reader.readAsText(file);
+    }
+}
+ConstantString.prototype.getTitle = ConstantNumber.prototype.getTitle;
+ConstantString.prototype.setValue = ConstantNumber.prototype.setValue;
+LiteGraph.registerNodeType("basic/string", ConstantString);
+
+
+class ConstantObject {
+
+    static title = "Const Object";
+    static desc = "Constant Object";
+
+    constructor() {
+        this.addOutput("obj", "object");
+        this.size = [120, 30];
+        this._object = {};
+    }
+
+    onExecute() {
+        this.setOutputData(0, this._object);
+    }
+}
+LiteGraph.registerNodeType("basic/object", ConstantObject);
+
+
+class ConstantFile {
+
+    static title = "Const File";
+    static desc = "Fetches a file from an url";
+
+    constructor() {
+        this.addInput("url", "string");
+        this.addOutput("file", "string");
+        this.addProperty("url", "");
+        this.addProperty("type", "text");
+        this.widget = this.addWidget("text", "url", "", "url");
+        this._data = null;
+    }
+
+    onPropertyChanged(name, value) {
+        if (name == "url") {
+            if (value == null || value == "") this._data = null;
+            else {
+                this.fetchFile(value);
+            }
+        }
+    }
+
+    onExecute() {
+        var url = this.getInputData(0) || this.properties.url;
+        if (url && (url != this._url || this._type != this.properties.type))
+            this.fetchFile(url);
+        this.setOutputData(0, this._data);
+    }
+
+    fetchFile(url) {
+        var that = this;
+        if (!url || url.constructor !== String) {
+            that._data = null;
+            that.boxcolor = null;
+            return;
+        }
+
+        this._url = url;
+        this._type = this.properties.type;
+        if (url.substr(0, 4) == "http" && LiteGraph.proxy) {
+            url = LiteGraph.proxy + url.substr(url.indexOf(":") + 3);
+        }
+        fetch(url)
+            .then(function (response) {
+                if (!response.ok) throw new Error("File not found");
+
+                if (that.properties.type == "arraybuffer")
+                    return response.arrayBuffer();
+                else if (that.properties.type == "text") return response.text();
+                else if (that.properties.type == "json") return response.json();
+                else if (that.properties.type == "blob") return response.blob();
+            })
+            .then(function (data) {
+                that._data = data;
+                that.boxcolor = "#AEA";
+            })
+            .catch((_error) => {
+                that._data = null;
+                that.boxcolor = "red";
+                console.error?.("error fetching file:", url);
+            });
+    }
+
+    onDropFile(file) {
+        var that = this;
+        this._url = file.name;
+        this._type = this.properties.type;
+        this.properties.url = file.name;
+        var reader = new FileReader();
+        reader.onload = function (e) {
+            that.boxcolor = "#AEA";
+            var v = e.target.result;
+            if (that.properties.type == "json") v = JSON.parse(v);
+            that._data = v;
+        };
+        if (that.properties.type == "arraybuffer") reader.readAsArrayBuffer(file);
+        else if (that.properties.type == "text" || that.properties.type == "json")
+            reader.readAsText(file);
+        else if (that.properties.type == "blob")
+            return reader.readAsBinaryString(file);
+    }
+
+    static "@type" = {
+        type: "enum",
+        values: ["text", "arraybuffer", "blob", "json"],
+    };
+}
+ConstantFile.prototype.setValue = ConstantNumber.prototype.setValue;
+LiteGraph.registerNodeType("basic/file", ConstantFile);
+
+
+// to store json objects
+class JSONParse {
+
+    static title = "JSON Parse";
+    static desc = "Parses JSON String into object";
+
+    constructor() {
+        this.addInput("parse", LiteGraph.ACTION);
+        this.addInput("json", "string");
+        this.addOutput("done", LiteGraph.EVENT);
+        this.addOutput("object", "object");
+        this.widget = this.addWidget("button", "parse", "", this.parse.bind(this));
+        this._str = null;
+        this._obj = null;
+    }
+
+    parse() {
+        if (!this._str) return;
+
+        try {
+            this._str = this.getInputData(1);
+            this._obj = JSON.parse(this._str);
+            this.boxcolor = "#AEA";
+            this.triggerSlot(0);
+        } catch (err) {
+            this.boxcolor = "red";
+        }
+    }
+
+    onExecute() {
+        this._str = this.getInputData(1);
+        this.setOutputData(1, this._obj);
+    }
+
+    onAction(name) {
+        if (name == "parse") this.parse();
+    }
+}
+LiteGraph.registerNodeType("basic/jsonparse", JSONParse);
+
+
+// to store json objects
+class ConstantData {
+
+    static title = "Const Data";
+    static desc = "Constant Data";
+
+    constructor() {
+        this.addOutput("data", "object");
+        this.addProperty("value", "");
+        this.widget = this.addWidget("text", "json", "", "value");
+        this.widgets_up = true;
+        this.size = [140, 30];
+        this._value = null;
+    }
+
+    onPropertyChanged(name, value) {
+        this.widget.value = value;
+        if (value == null || value == "") {
+            return;
+        }
+
+        try {
+            this._value = JSON.parse(value);
+            this.boxcolor = "#AEA";
+        } catch (err) {
+            this.boxcolor = "red";
+        }
+    }
+
+    onExecute() {
+        this.setOutputData(0, this._value);
+    }
+}
+ConstantData.prototype.setValue = ConstantNumber.prototype.setValue;
+LiteGraph.registerNodeType("basic/data", ConstantData);
+
+
+// to store json objects
+class ConstantArray {
+
+    static title = "Const Array";
+    static desc = "Constant Array";
+
+    constructor() {
+        this._value = [];
+        this.addInput("json", "");
+        this.addOutput("arrayOut", "array");
+        this.addOutput("length", "number");
+        this.addProperty("value", "[]");
+        this.widget = this.addWidget(
+            "text",
+            "array",
+            this.properties.value,
+            "value",
+        );
+        this.widgets_up = true;
+        this.size = [140, 50];
+    }
+
+    onPropertyChanged(name, value) {
+        this.widget.value = value;
+        if (value == null || value == "") {
+            return;
+        }
+
+        try {
+            if (value[0] != "[") this._value = JSON.parse("[" + value + "]");
+            else this._value = JSON.parse(value);
+            this.boxcolor = "#AEA";
+        } catch (err) {
+            this.boxcolor = "red";
+        }
+    }
+
+    onExecute() {
+        var v = this.getInputData(0);
+        if (v && v.length) {
+            // clone
+            if (!this._value)
+                this._value = new Array();
+            this._value.length = v.length;
+            for (var i = 0; i < v.length; ++i)
+                this._value[i] = v[i];
+            this.changeOutputType("arrayOut", "array");
+        }
+        this.setOutputData(0, this._value);
+        this.setOutputData(1, this._value ? this._value.length || 0 : 0);
+    }
+}
+ConstantArray.prototype.setValue = ConstantNumber.prototype.setValue;
+LiteGraph.registerNodeType("basic/array", ConstantArray);
+
+class ArrayLength {
+
+    static title = "aLength";
+    static desc = "Get the length of an array";
+
+    constructor() {
+        this.addInput("arr", "array");
+        this.addOutput("length", "number");
+    }
+
+    onExecute() {
+        var arr = this.getInputData(0);
+        if(!arr)
+            return;
+        if(["array","object"].includes(typeof(arr)) && typeof(arr.length)!=="undefined") {
+            this.setOutputData(0,arr.length);
+        }else{
+            console.debug?.("Not an array or object",typeof(arr),arr);
+            this.setOutputData(0,null);
+        }
+    }
+}
+LiteGraph.registerNodeType("basic/array_length", ArrayLength );
+
+
+class SetArray {
+
+    static title = "Set Array";
+    static desc = "Sets index of array";
+
+    constructor() {
+        this.addInput("arr", "array");
+        this.addInput("value", "");
+        this.addOutput("arr", "array");
+        this.properties = { index: 0 };
+        this.widget = this.addWidget(
+            "number",
+            "i",
+            this.properties.index,
+            "index",
+            { precision: 0, step: 10, min: 0 },
+        );
+    }
+
+    onExecute() {
+        var arr = this.getInputData(0);
+        if (!arr) return;
+        var v = this.getInputData(1);
+        if (v === undefined) return;
+        if (this.properties.index) arr[Math.floor(this.properties.index)] = v;
+        this.setOutputData(0, arr);
+    }
+}
+LiteGraph.registerNodeType("basic/set_array", SetArray);
+
+
+class ArrayElement {
+
+    static title = "Array[i]";
+    static desc = "Returns an element from an array";
+
+    constructor() {
+        this.addInput("array", "array,table,string");
+        this.addInput("index", "number");
+        this.addOutput("value", "");
+        this.addProperty("index", 0);
+    }
+
+    onExecute() {
+        var array = this.getInputData(0);
+        var index = this.getInputData(1);
+        if (index == null) index = this.properties.index;
+        if (array == null || index == null) return;
+        this.setOutputData(0, array[Math.floor(Number(index))]);
+    }
+}
+LiteGraph.registerNodeType("basic/array[]", ArrayElement);
+
+
+class TableElement {
+
+    static title = "Table[row][col]";
+    static desc = "Returns an element from a table";
+
+    constructor() {
+        this.addInput("table", "table");
+        this.addInput("row", "number");
+        this.addInput("col", "number");
+        this.addOutput("value", "");
+        this.addProperty("row", 0);
+        this.addProperty("column", 0);
+    }
+
+    onExecute() {
+        var table = this.getInputData(0);
+        var row = this.getInputData(1);
+        var col = this.getInputData(2);
+        if (row == null) row = this.properties.row;
+        if (col == null) col = this.properties.column;
+        if (table == null || row == null || col == null) return;
+        row = table[Math.floor(Number(row))];
+        if (row) this.setOutputData(0, row[Math.floor(Number(col))]);
+        else this.setOutputData(0, null);
+    }
+}
+LiteGraph.registerNodeType("basic/table[][]", TableElement);
+
+
+class ObjectProperty {
+
+    static title = "Object property";
+    static desc = "Outputs the property of an object";
+
+    constructor() {
+        this.addInput("obj", "object");
+        this.addOutput("property", 0);
+        this.addProperty("value", 0);
+        this.widget = this.addWidget("text", "prop.", "", this.setValue.bind(this));
+        this.widgets_up = true;
+        this.size = [140, 30];
+        this._value = null;
+    }
+
+    setValue(v) {
+        this.properties.value = v;
+        this.widget.value = v;
+    }
+
+    getTitle() {
+        if (this.flags.collapsed) {
+            return "in." + this.properties.value;
+        }
+        return this.title;
+    }
+
+    onPropertyChanged(name, value) {
+        this.widget.value = value;
+    }
+
+    onExecute() {
+        var data = this.getInputData(0);
+        if (data != null) {
+            this.setOutputData(0, data[this.properties.value]);
+        }
+    }
+}
+LiteGraph.registerNodeType("basic/object_property", ObjectProperty);
+
+
+class ObjectKeys {
+    static title = "Object keys";
+    static desc = "Outputs an array with the keys of an object";
+    constructor() {
+        this.addInput("obj", "");
+        this.addOutput("keys", "array");
+        this.size = [140, 30];
+    }
+
+    onExecute() {
+        var data = this.getInputData(0);
+        if (data != null) {
+            this.setOutputData(0, Object.keys(data));
+        }
+    }
+}
+LiteGraph.registerNodeType("basic/object_keys", ObjectKeys);
+
+
+class SetObject {
+
+    static title = "Set Object";
+    static desc = "Adds propertiesrty to object";
+
+    constructor() {
+        this.addInput("obj", "");
+        this.addInput("value", "");
+        this.addOutput("obj", "");
+        this.properties = { property: "" };
+        this.name_widget = this.addWidget(
+            "text",
+            "prop.",
+            this.properties.property,
+            "property",
+        );
+    }
+
+    onExecute() {
+        var obj = this.getInputData(0);
+        if (!obj) return;
+        var v = this.getInputData(1);
+        if (v === undefined) return;
+        if (this.properties.property) obj[this.properties.property] = v;
+        this.setOutputData(0, obj);
+    }
+}
+LiteGraph.registerNodeType("basic/set_object", SetObject);
+
+
+class MergeObjects {
+
+    static title = "Merge Objects";
+    static desc = "Creates an object copying properties from others";
+
+    constructor() {
+        this.addInput("A", "object");
+        this.addInput("B", "object");
+        this.addOutput("out", "object");
+        this._result = {};
+        var that = this;
+        this.addWidget("button", "clear", "", function () {
+            that._result = {};
+        });
+        this.size = this.computeSize();
+    }
+
+    onExecute() {
+        var A = this.getInputData(0);
+        var B = this.getInputData(1);
+        var C = this._result;
+        if (A)
+            for (let i in A)
+                C[i] = A[i];
+        if (B)
+            for (let i in B)
+                C[i] = B[i];
+        this.setOutputData(0, C);
+    }
+}
+LiteGraph.registerNodeType("basic/merge_objects", MergeObjects);
+
+
+// Store as variable
+class Variable {
+
+    static title = "Variable";
+    static desc = "store/read variable value";
+
+    constructor() {
+        this.size = [60, 30];
+        this.addInput("in");
+        this.addOutput("out");
+        this.properties = { varname: "myname", container: Variable.LITEGRAPH };
+        this.value = null;
+    }
+
+    onExecute() {
+        var container = this.getContainer();
+
+        if (this.isInputConnected(0)) {
+            this.value = this.getInputData(0);
+            container[this.properties.varname] = this.value;
+            this.setOutputData(0, this.value);
+            return;
+        }
+
+        this.setOutputData(0, container[this.properties.varname]);
+    }
+
+    getContainer() {
+        switch (this.properties.container) {
+            case Variable.GRAPH:
+                if (this.graph) return this.graph.vars;
+                return {};
+            case Variable.GLOBALSCOPE:
+                return global; // @BUG: not sure what to do with this now
+            default:
+                return LiteGraph.Globals;
+        }
+    }
+
+    getTitle() {
+        return this.properties.varname;
+    }
+
+}
+// @TODO:Enum
+Variable.LITEGRAPH = 0; // between all graphs
+Variable.GRAPH = 1; // only inside this graph
+Variable.GLOBALSCOPE = 2; // attached to Window
+Variable["@container"] = {
+    type: "enum",
+    values: {
+        litegraph: Variable.LITEGRAPH,
+        graph: Variable.GRAPH,
+        global: Variable.GLOBALSCOPE,
+    },
+};
+LiteGraph.registerNodeType("basic/variable", Variable);
+
+
+function length(v) {
+    if (v && v.length != null) return Number(v.length);
+    return 0;
+}
+LiteGraph.wrapFunctionAsNode("basic/length", length, [""], "number");
+
+
+
+LiteGraph.wrapFunctionAsNode(
+    "basic/not",
+    function (a) {
+        return !a;
+    },
+    [""],
+    "boolean",
+);
+
+
+class DownloadData {
+
+    static title = "Download";
+    static desc = "Download some data";
+
+    constructor() {
+        this.size = [60, 30];
+        this.addInput("data", 0);
+        this.addInput("download", LiteGraph.ACTION);
+        this.properties = { filename: "data.json" };
+        this.value = null;
+        var that = this;
+        this.addWidget("button", "Download", "", () => {
+            if (!that.value) return;
+            that.downloadAsFile();
+        });
+    }
+
+    downloadAsFile() {
+        if (this.value == null) return;
+
+        var str = null;
+        if (this.value.constructor === String) str = this.value;
+        else str = JSON.stringify(this.value);
+
+        var file = new Blob([str]);
+        var url = URL.createObjectURL(file);
+        var element = document.createElement("a");
+        element.setAttribute("href", url);
+        element.setAttribute("download", this.properties.filename);
+        element.style.display = "none";
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
+        setTimeout(function () {
+            URL.revokeObjectURL(url);
+        }, 1000 * 60); // wait one minute to revoke url
+    }
+
+    onAction() {
+        var that = this;
+        setTimeout(function () {
+            that.downloadAsFile();
+        }, 100); // deferred to avoid blocking the renderer with the popup
+    }
+
+    onExecute() {
+        if (this.inputs[0]) {
+            this.value = this.getInputData(0);
+        }
+    }
+
+    getTitle() {
+        if (this.flags.collapsed) {
+            return this.properties.filename;
+        }
+        return this.title;
+    }
+}
+LiteGraph.registerNodeType("basic/download", DownloadData);
+
+
+// Watch a value in the editor
+class Watch {
+
+    static title = "Watch";
+    static desc = "Show value of input";
+
+    constructor() {
+        this.size = [60, 30];
+        this.addInput("value", 0, { label: "" });
+        this.value = 0;
+    }
+
+    onExecute() {
+        if (this.inputs[0]) {
+            this.value = this.getInputData(0);
+        }
+    }
+
+    getTitle() {
+        if (this.flags.collapsed) {
+            return this.inputs[0].label;
+        }
+        return this.title;
+    }
+
+    static toString(o) {
+        if (o == null) {
+            return "null";
+        } else if (o.constructor === Number) {
+            return o.toFixed(3);
+        } else if (o.constructor === Array) {
+            var str = "[";
+            for (var i = 0; i < o.length; ++i) {
+                str += Watch.toString(o[i]) + (i + 1 != o.length ? "," : "");
+            }
+            str += "]";
+            return str;
+        } else {
+            return String(o);
+        }
+    }
+
+    onDrawBackground() {
+        // show the current value
+        this.inputs[0].label = Watch.toString(this.value);
+    }
+}
+LiteGraph.registerNodeType("basic/watch", Watch);
+
+
+// in case one type doesnt match other type but you want to connect them anyway
+class Cast {
+
+    static title = "Cast";
+    static desc = "Allows to connect different types";
+
+    constructor() {
+        this.addInput("in", 0);
+        this.addOutput("out", 0);
+        this.size = [40, 30];
+    }
+
+    onExecute() {
+        this.setOutputData(0, this.getInputData(0));
+    }
+}
+LiteGraph.registerNodeType("basic/cast", Cast);
+
+
+// Show value inside the debug console
+class Console {
+
+    static title = "Console";
+    static desc = "Show value inside the console";
+    // @BUG: Didn't output text to console, either in browser or cmd
+
+    constructor() {
+        this.mode = LiteGraph.ON_EVENT;
+        this.size = [80, 30];
+        this.addProperty("msg", "");
+        this.addInput("log", LiteGraph.EVENT);
+        this.addInput("msg", 0);
+    }
+
+    onAction(action, param) {
+        // param is the action
+        var msg = this.getInputData(1); // getInputDataByName("msg");
+        // if (msg == null || typeof msg == "undefined") return;
+        if (!msg) msg = this.properties.msg;
+        if (!msg) msg = "Event: " + param; // msg is undefined if the slot is lost?
+        if (action == "log") {
+            console.log?.(msg);
+        } else if (action == "warn") {
+            console.warn?.(msg);
+        } else if (action == "error") {
+            console.error?.(msg);
+        }
+    }
+
+    onExecute() {
+        var msg = this.getInputData(1); // getInputDataByName("msg");
+        if (!msg) msg = this.properties.msg;
+        if (msg != null && typeof msg != "undefined") {
+            this.properties.msg = msg;
+            console.log?.(msg);
+        }
+    }
+
+    onGetInputs() {
+        return [
+            ["log", LiteGraph.ACTION],
+            ["warn", LiteGraph.ACTION],
+            ["error", LiteGraph.ACTION],
+        ];
+    }
+}
+LiteGraph.registerNodeType("basic/console", Console);
+
+
+// Show value inside the debug console
+class Alert {
+
+    static title = "Alert";
+    static desc = "Show an alert window";
+
+    constructor() {
+        this.mode = LiteGraph.ON_EVENT;
+        this.addProperty("msg", "");
+        this.addInput("", LiteGraph.EVENT);
+
+        this.widget = this.addWidget("text", "Text", "", "msg");
+        this.widgets_up = true;
+        this.size = [200, 30];
+    }
+
+    onConfigure(o) {
+        this.widget.value = o.properties.msg;
+    }
+
+    onAction() {
+        var msg = this.properties.msg;
+        setTimeout(function () {
+            alert(msg);
+        }, 10);
+    }
+
+    static color = "#510";
+}
+LiteGraph.registerNodeType("basic/alert", Alert);
+
+
+// Executes simple code
+class NodeScript {
+
+    static title = "Script";
+    static desc = "executes a code (max 256 characters)";
+
+    constructor() {
+        this.size = [60, 30];
+        this.addProperty("onExecute", "return A;");
+        this.addInput("A", 0);
+        this.addInput("B", 0);
+        this.addOutput("out", 0);
+
+        this._func = null;
+        this.data = {};
+    }
+
+    onConfigure(o) {
+        if (o.properties.onExecute && LiteGraph.allow_scripts)
+            this.compileCode(o.properties.onExecute);
+        else console.warn?.("Script not compiled, LiteGraph.allow_scripts is false");
+    }
+
+    onPropertyChanged(name, value) {
+        if (name == "onExecute" && LiteGraph.allow_scripts) this.compileCode(value);
+        else console.warn?.("Script not compiled, LiteGraph.allow_scripts is false");
+    }
+
+    compileCode(code) {
+        this._func = null;
+        if (code.length > 256) {
+            console.warn?.("Script too long, max 256 chars");
+        } else {
+            var code_low = code.toLowerCase();
+            var forbidden_words = [
+                "script",
+                "body",
+                "document",
+                "eval",
+                "nodescript",
+                "function",
+            ]; // bad security solution
+            for (var i = 0; i < forbidden_words.length; ++i) {
+                if (code_low.indexOf(forbidden_words[i]) != -1) {
+                    console.warn?.("invalid script");
+                    return;
+                }
+            }
+            try {
+                this._func = new Function("A", "B", "C", "DATA", "node", code);
+            } catch (err) {
+                console.error?.("Error parsing script");
+                console.error?.(err);
+            }
+        }
+    }
+
+    onExecute() {
+        if (!this._func) {
+            return;
+        }
+
+        try {
+            var A = this.getInputData(0);
+            var B = this.getInputData(1);
+            var C = this.getInputData(2);
+            this.setOutputData(0, this._func(A, B, C, this.data, this));
+        } catch (err) {
+            console.error?.("Error in script");
+            console.error?.(err);
+        }
+    }
+
+    onGetOutputs() {
+        return [["C", ""]];
+    }
+
+    static widgets_info = { onExecute: { type: "code" } };
+}
+LiteGraph.registerNodeType("basic/script", NodeScript);
+
+
+class GenericCompare {
+
+    static title = "Compare *";
+    static desc = "evaluates condition between A and B";
+
+    constructor() {
+        this.addInput("A", 0);
+        this.addInput("B", 0);
+        this.addOutput("true", "boolean");
+        this.addOutput("false", "boolean");
+        this.addProperty("A", 1);
+        this.addProperty("B", 1);
+        this.addProperty("OP", "==", "enum", { values: GenericCompare.values });
+        this.addWidget("combo", "Op.", this.properties.OP, {
+            property: "OP",
+            values: GenericCompare.values,
+        });
+
+        this.size = [80, 60];
+    }
+
+    getTitle() {
+        return "*A " + this.properties.OP + " *B";
+    }
+
+    onExecute() {
+        var A = this.getInputData(0);
+        if (A === undefined) {
+            A = this.properties.A;
+        } else {
+            this.properties.A = A;
+        }
+
+        var B = this.getInputData(1);
+        if (B === undefined) {
+            B = this.properties.B;
+        } else {
+            this.properties.B = B;
+        }
+
+        var result = false;
+        if (typeof A == typeof B) {
+            switch (this.properties.OP) {
+                case "==":
+                case "!=":
+                    // traverse both objects.. consider that this is not a true deep check! consider underscore or other library for thath :: _isEqual()
+                    result = true;
+                    switch (typeof A) {
+                        case "object":
+                            var aProps = Object.getOwnPropertyNames(A);
+                            var bProps = Object.getOwnPropertyNames(B);
+                            if (aProps.length != bProps.length) {
+                                result = false;
+                                break;
+                            }
+                            for (var i = 0; i < aProps.length; i++) {
+                                var propName = aProps[i];
+                                if (A[propName] !== B[propName]) {
+                                    result = false;
+                                    break;
+                                }
+                            }
+                            break;
+                        default:
+                            result = A == B;
+                    }
+                    if (this.properties.OP == "!=") result = !result;
+                    break;
+                /* case ">":
+                    result = A > B;
+                    break;
+                case "<":
+                    result = A < B;
+                    break;
+                case "<=":
+                    result = A <= B;
+                    break;
+                case ">=":
+                    result = A >= B;
+                    break;
+                case "||":
+                    result = A || B;
+                    break;
+                case "&&":
+                    result = A && B;
+                    break;*/
+            }
+        }
+        this.setOutputData(0, result);
+        this.setOutputData(1, !result);
+    }
+
+    static values = ["==", "!="]; // [">", "<", "==", "!=", "<=", ">=", "||", "&&" ];
+
+    static "@OP" = {
+        type: "enum",
+        title: "operation",
+        values: GenericCompare.values,
+    };
+}
+LiteGraph.registerNodeType("basic/CompareValues", GenericCompare);
+
+```
+--------------------------------------------------
+File: .\nodes\stable_diffusion\py\node_load_sd15.py
+```
+import os
+import yaml
+import torch
+import safetensors.torch
+from server.py.node_template import NodeTemplate
+from server.py.global_settings import GlobalSettings
+
+class NodeLoadSD15 (NodeTemplate):
+    title = "Load SD15"
+    desc = "Load Stable Diffusion 1.5 or its fine-tunes"
+    models_yml = os.path.join(os.path.dirname(__file__), '..', 'models.yml')
+    model_mappings = {}
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def WIDGETS(cls):
+        allowed_extensions = [".safetensors"]
+        allowed_subfolders = ["SD15"]
+        models_dir = GlobalSettings.models_dir_physical
+        all_display_names = []
+
+        for root, dirs, files in os.walk(models_dir):
+            for subfolder in allowed_subfolders:
+                if subfolder in root:
+                    for file in files:
+                        if any(file.endswith(ext) for ext in allowed_extensions):
+                            model_path = os.path.join(root, file)
+                            yml_path = os.path.splitext(model_path)[0] + ".yml"
+                            
+                            if os.path.exists(yml_path):
+                                with open(yml_path, 'r') as yml_file:
+                                    yml_content = yaml.safe_load(yml_file)
+                                    display_name = yml_content.get('display_name')
+                                    
+                                    if display_name:
+                                        cls.model_mappings[display_name] = model_path
+                                        all_display_names.append(display_name)
+
+
+
+        return [
+            # type, name, value, callback, options
+            {"type": "combo", "name": "model", "value": all_display_names}
+        ]
+    
+    @classmethod
+    def OUTPUTS(s):
+        return [
+            {"name": "UNet", "type": "UNET"},
+            {"name": "CLIP", "type": "CLIP"},
+            {"name": "VAE", "type": "VAE"},
+        ]
+    
+    def main(self, model):
+        model_display_name = model
+        model_path = self.model_mappings[model]
+
+        print(f"loading model {model_path}")
+
+        # Load the model using torch
+        try:
+            model_data = safetensors.torch.load_file(model_path, device=GlobalSettings.device.type)
+            print("Model loaded successfully")
+            
+            unet_keys = [key for key in model_data.keys() if key.startswith('model.diffusion_model')]
+            clip_keys = [key for key in model_data.keys() if key.startswith('cond_stage_model')]
+            vae_keys = [key for key in model_data.keys() if key.startswith('first_stage_model')]
+            
+            unet = {key: model_data[key] for key in unet_keys}
+            clip = {key: model_data[key] for key in clip_keys}
+            vae = {key: model_data[key] for key in vae_keys}
+            
+            return unet, clip, vae
+        
+        except Exception as e:
+            print(f"Failed to load the model: {e}")
+            return None, None, None
+
+
+```
+--------------------------------------------------
+File: .\server\main.py
+```
+from typing import Any, Dict, List
+from pathlib import Path
+from importlib import import_module
+import json
+import torch
+import numpy as np
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from contextlib import asynccontextmanager
+from pydantic import BaseModel
+import traceback
+
+# allow import from the project directory
+import sys, os, shutil
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from server.py.global_settings import GlobalSettings
+from server.py.cache import GlobalCache
+from server.py.node_template import NodeTemplate
+from server.py.custom_logs import logging
+logger = logging.getLogger("server")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Pre-warm PyTorch operations
+    dummy_array = np.array([0], dtype=np.float32)
+    dummy_tensor = torch.from_numpy(dummy_array).to(GlobalSettings.device)
+    logger.info("Pre-warming PyTorch completed.")
+    if (len(all_nodes)==0):
+        load_all_nodes()
+        logger.info("All nodes loaded.")
+    yield
+    # Clean up the ML models and release the resources
+
+app = FastAPI(lifespan=lifespan)
+
+running_nodes = {}
+# This list will store all node information
+all_nodes: List[Dict[str, Any]] = []
+
+# Define CORS settings
+origins = [
+    "*",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allow all headers
+    expose_headers=["X-Image-Width", "X-Image-Height"],  # Explicitly expose the custom headers
+
+)
+
+def load_nodes_from_file(file: Path, white_list=None):
+    module_name = file.stem  # Get the module name without '.py'
+    # Construct module path relative to the 'nodes' directory
+    relative_module_path = '.'.join(file.parts)[:-3]
+
+    # Import the module dynamically
+    module = import_module(relative_module_path)
+
+    # To add Routers (which can be thought of as a mini FastAPI application) to your main FastAPI app
+    if hasattr(module, 'app') and isinstance(module.app, FastAPI):
+        app.include_router(module.app.router)
+
+    # Loop through each attribute in the module
+    for attr_name in dir(module):
+        if isinstance(white_list, List):
+            if attr_name not in white_list:
+                continue
+        attr = getattr(module, attr_name)
+        if isinstance(attr, type) and issubclass(attr, NodeTemplate) and attr is not NodeTemplate:  # Check if the attribute is a subclass of NodeTemplate
+            node = {
+                'inputs': attr.INPUTS() if hasattr(attr, 'INPUTS') else [],
+                'widgets': attr.WIDGETS() if hasattr(attr, 'WIDGETS') else [],
+                'outputs': attr.OUTPUTS() if hasattr(attr, 'OUTPUTS') else [],
+                'type': f"{file.parent.parent.name}/{attr.__name__}",
+                'serverside_class': f"{relative_module_path}.{attr_name}",
+                'title': getattr(attr, 'title', ''),
+                'desc': getattr(attr, 'desc', '')
+            }
+            all_nodes.append(node)
+        if isinstance(attr, type) and hasattr(attr, "FUNCTION"):
+            # Be compatible with ComfyUI nodes!
+            if hasattr(module, "NODE_DISPLAY_NAME_MAPPINGS"):
+                title = module.NODE_DISPLAY_NAME_MAPPINGS[attr.__name__]
+            else:
+                title = attr.__name__
+
+            inputs = attr.INPUT_TYPES()["required"]
+            inputs_list = []
+            widgets_list = []
+
+            for key, value in inputs.items():
+                if len(value) > 0:
+                    options = None
+                    if isinstance(value[0], list):
+                        widget_item = {"type": "combo", "name": key, "value": value[0]}
+                        widgets_list.append(widget_item)
+                    elif len(value) > 1 and isinstance(value[1], dict):
+                        options = value[1]
+                        if value[0]=="INT" or value[0]=="FLOAT":
+                            widget_type = "number" #TODO: Widget type should support int!
+                        else:
+                            widget_type = value[0]
+                        widget_item = {"type": widget_type, "name": key, "options": options}
+                        widgets_list.append(widget_item)
+                    else:
+                        input_item = {"name": key, "type": value[0]}
+                        inputs_list.append(input_item)
+
+            outputs_list = []
+            if hasattr(attr, 'RETURN_TYPES'):
+                for item in attr.RETURN_TYPES:
+                    outputs_list.append({"name": item, "type": item})
+            node = {
+                'inputs': inputs_list,
+                'widgets': widgets_list,
+                'outputs': outputs_list,
+                'type': f"Comfy/{attr.__name__}",
+                'serverside_class': f"{relative_module_path}.{attr_name}",
+                'title': title,
+                'desc': getattr(attr, 'desc', ''),
+                'entrypoint': getattr(attr, 'FUNCTION', 'main'),
+            }
+            all_nodes.append(node)
+
+def load_nodes_from_directory(directory: Path):
+    # Loop over each Python file in the directory
+    for file in directory.glob('*.py'):
+        load_nodes_from_file(file)
+
+def load_all_nodes():
+    base_path = Path('./nodes')
+    # Check each subdirectory in the nodes directory
+    for pack_directory in base_path.iterdir():
+        if pack_directory.is_dir():
+            # Read each pack directory
+            for sub_dir in pack_directory.iterdir():
+                if sub_dir.is_dir() and sub_dir.name == 'py':
+                    load_nodes_from_directory(sub_dir)
+    
+    # if `server/lib/ComfyUI/nodes.py` exists, load_nodes_from_directory(that)
+    comfy_nodes_file_path = Path('./server/lib/ComfyUI/nodes.py')
+    if comfy_nodes_file_path.exists():
+        logger.info("Ha, we have a guest here! (Found ComfyUI)")
+        sys.path.append(r'./server/lib/ComfyUI/')
+        import folder_paths
+        folder_paths.folder_names_and_paths["checkpoints"][0].append(os.path.abspath('./server/models/'))
+        ckpts = folder_paths.get_filename_list("checkpoints")
+        import comfy.model_management
+        GlobalCache.free_comfyui = comfy.model_management.unload_all_models
+        load_nodes_from_file(comfy_nodes_file_path, white_list=["CheckpointLoaderSimple", "CLIPTextEncode", "KSampler", "EmptyLatentImage", "VAEDecode"])
+
+@app.get("/nodes")
+async def get_nodes():
+    if (len(all_nodes)==0):
+        load_all_nodes()
+    return all_nodes
+
+class APIInput(BaseModel):
+    node_uuid: str
+    serverside_class: str
+    input: Dict[str, Any]
+
+@app.post("/api")
+async def api(data: APIInput):
+    try:
+        if (data.node_uuid not in running_nodes):
+            # create the node on server-side
+            module_path, class_name = data.serverside_class.rsplit('.', 1)
+            module = import_module(module_path)
+            Class = getattr(module, class_name)
+            instance = Class()
+            running_nodes[data.node_uuid] = instance
+        
+        server_node = running_nodes[data.node_uuid]
+
+        if hasattr(server_node, "download_assets"):
+            # nodes that follow NodeTemplate have this function to download necessary assets including models
+            server_node.download_assets()
+
+        if hasattr(server_node, "FUNCTION"):
+            # allow nodes to set entrypoint other than the default `main()` for compatibility
+            func = getattr(server_node, server_node.FUNCTION)
+        else:
+            func = server_node.main
+
+        temp = data.input
+        for key, value in data.input.items():
+            if isinstance(value, dict) and "pointer" in value and value["pointer"]=="object":
+                data.input[key] = GlobalCache.get(value["id"], value["name"])
+
+        with torch.inference_mode():
+            # enter inference mode to speed up (and avoid "RuntimeError: a leaf Variable that requires grad is being used in an in-place operation."), no training allowed.
+            output = func(**data.input)
+
+        output = list(output)
+        for i, obj in enumerate(output):
+            if isinstance(obj, object):
+                full_classname = f"{obj.__class__.__module__}.{obj.__class__.__qualname__}"
+                GlobalCache.set(data.node_uuid, full_classname, obj)
+                output[i] = {"id": data.node_uuid, "name": full_classname, "pointer": "object"} # TODO: save the object to cache and give a reference pointer to the client
+        logger.info( json.dumps(GlobalCache.list()) )
+        logger.warn( "Think about free up VRAM here.")
+        return {"result": output}
+    except Exception as e:
+        error_message = str(e)
+        error_traceback = traceback.format_exc()
+        logger.error(error_traceback)  # Optionally log the traceback to server logs
+        # Return a structured response containing the error message and traceback
+        return {"error": error_message, "traceback": error_traceback}
+
+# Create folder for input if not exsits
+os.makedirs(GlobalSettings.input_dir_physical, exist_ok=True)
+app.mount(f"{GlobalSettings.input_dir}", StaticFiles(directory=f"{GlobalSettings.input_dir_physical}"), name="input")
+# Recreate folder for temp
+if os.path.exists(GlobalSettings.temp_dir_physical):
+    shutil.rmtree(GlobalSettings.temp_dir_physical)
+os.makedirs(GlobalSettings.temp_dir_physical, exist_ok=True)
+app.mount(f"{GlobalSettings.temp_dir}", StaticFiles(directory=f"{GlobalSettings.temp_dir_physical}"), name="temp")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=6165, reload=True)
+```
+--------------------------------------------------
+File: .\server\py\cache.py
+```
+import torch
+
+class GlobalCache:
+    cache = {}
+    
+    @staticmethod
+    def set(id, name, value):
+        if id not in GlobalCache.cache:
+            GlobalCache.cache[id] = {}
+        GlobalCache.cache[id][name] = value
+
+    @staticmethod
+    def get(id, name):
+        if id in GlobalCache.cache and name in GlobalCache.cache[id]:
+            return GlobalCache.cache[id][name]
+        return None
+    
+    @staticmethod
+    def list():
+        ret = []
+        for id in GlobalCache.cache:
+            for name in GlobalCache.cache[id]:
+                obj = GlobalCache.cache[id][name]
+                if hasattr(obj, 'patcher'):
+                    obj = obj.patcher
+                if obj.__class__.__qualname__ == 'ModelPatcher':
+                    # memory_required = obj.memory_required()
+                    pass
+
+                ret.append({"id": id, "name": name})
+        return ret
+    
+    @staticmethod
+    def free():
+        GlobalCache.cache = {}
+
+    @staticmethod
+    def free_comfyui():
+        return
+
+    @staticmethod
+    def print_object(obj, indent=0):
+        spacing = ' ' * indent
+        if isinstance(obj, dict):
+            for key, value in obj.items():
+                print(f"{spacing}{key}:")
+                GlobalCache.print_object(value, indent + 4)  # Recursive call for dict values
+        elif isinstance(obj, list):
+            for index, item in enumerate(obj):
+                print(f"{spacing}[{index}]:")
+                GlobalCache.print_object(item, indent + 4)  # Recursive call for list items
+        elif hasattr(obj, '__dict__'):
+            for key, value in vars(obj).items():
+                print(f"{spacing}{key}:")
+                GlobalCache.print_object(value, indent + 4)  # Recursive call for object attributes
+        else:
+            print(f"{spacing}{obj}")  # Base case: print the attribute value
+
+```
+--------------------------------------------------
+File: .\server\py\custom_logs.py
+```
+import logging
+from colorama import Fore, Style
+
+class ColorFormatter(logging.Formatter):
+    def format(self, record):
+        # Prepend [ComfyUI] to the log message
+        if record.name == 'root':
+            # Since I don't want to modify ComfyUI's logging behavior (`logging.info`), make sure we don't use `root` and leave it to ComfyUI
+            record.msg = f"{Fore.BLUE}{Style.DIM}[ComfyUI]\t{record.msg}{Style.RESET_ALL}"
+        elif record.name == 'server':
+            record.msg = f"{Fore.GREEN}{Style.NORMAL}[StoneSoup]\t{record.msg}{Style.RESET_ALL}"
+        return super().format(record)
+
+# Configure logging
+formatter = ColorFormatter('%(levelname)s:\t%(message)s')
+handler = logging.StreamHandler()
+handler.setFormatter(formatter)
+logging.basicConfig(level=logging.INFO, handlers=[handler])
+
+```
+--------------------------------------------------
+File: .\server\py\global_settings.py
+```
+import torch
+
+# Determine the device (CPU, GPU with CUDA, or GPU with MPS)
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+elif torch.backends.mps.is_available():
+    device = torch.device("mps")
+else:
+    device = torch.device("cpu")
+
+class GlobalSettings:
+    input_dir_physical = "server/input"
+    input_dir = "/input"
+    temp_dir_physical = "server/tmp"
+    temp_dir = "/tmp"
+
+    models_dir_physical = "server/models"
+
+    device = device
+```
+--------------------------------------------------
+File: .\server\py\node_template.py
+```
+class NodeTemplate:
+    def download_assets(self):
+        # read its models.yml and download things
+        pass
+```
+--------------------------------------------------
