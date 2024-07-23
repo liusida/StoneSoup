@@ -4,3 +4,6 @@
 [submodule "client/lib/litegraph.tsx"]
 	path = client/lib/litegraph.tsx
 	url = https://github.com/litegraph-tsx/litegraph.tsx.git
+[submodule "server/lib/ComfyUI"]
+	path = server/lib/ComfyUI
+	url = https://github.com/comfyanonymous/ComfyUI.git
