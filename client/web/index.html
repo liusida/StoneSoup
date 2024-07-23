@@ -8,7 +8,11 @@
     <link rel="stylesheet" href="/litegraph_css/litegraph.css">
     <link rel="stylesheet" href="/litegraph_css/litegraph-editor.css">
 
-    <script type="module" src="/litegraph/litegraph.js"></script>
+    <script type="module" src="/litegraph/litegraph.tsx.mjs"></script>
+    <script type="module">
+        import { LiteGraph } from "/litegraph/litegraph.tsx.mjs";
+        globalThis.LiteGraph = LiteGraph;
+    </script>
 
 </head>
 <body>
